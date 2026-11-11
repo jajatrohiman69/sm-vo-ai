@@ -12,7 +12,8 @@ import remarkGfm from "remark-gfm";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { API_URL } from "@/lib/api";
+import { API_URL, uploadAttachment } from "@/lib/api";
+import type { UploadedAttachment } from "@/lib/api";
 
 /* ------------------------------------------------------------------ */
 /* Types (tetap diekspor karena dipakai file lain)                     */
@@ -467,11 +468,23 @@ export default function VirtualOffice3D({
     "Low" | "Normal" | "High" | "Urgent"
   >("High");
   const [submittingTask, setSubmittingTask] = useState(false);
+  const [taskAttachments, setTaskAttachments] = useState<UploadedAttachment[]>(
+    [],
+  );
+  const [uploadingTaskFiles, setUploadingTaskFiles] = useState(false);
+  const [taskUploadError, setTaskUploadError] = useState("");
+  const taskFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [chatInput, setChatInput] = useState("");
   const [chatReply, setChatReply] = useState("");
   const [chatModelUsed, setChatModelUsed] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatAttachments, setChatAttachments] = useState<UploadedAttachment[]>(
+    [],
+  );
+  const [uploadingChatFiles, setUploadingChatFiles] = useState(false);
+  const [chatUploadError, setChatUploadError] = useState("");
+  const chatFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [newProjName, setNewProjName] = useState("");
   const [newProjDesc, setNewProjDesc] = useState("");
@@ -591,12 +604,16 @@ export default function VirtualOffice3D({
 
   useEffect(() => {
     const ctrl = new AbortController();
-    void loadOfficeData(ctrl.signal);
+    const initialLoad = window.setTimeout(
+      () => void loadOfficeData(ctrl.signal),
+      0,
+    );
     const interval = setInterval(() => {
       if (!document.hidden) void loadOfficeData(ctrl.signal);
     }, 8000);
     return () => {
       ctrl.abort();
+      clearTimeout(initialLoad);
       clearInterval(interval);
     };
   }, [loadOfficeData]);
@@ -2099,11 +2116,16 @@ export default function VirtualOffice3D({
           assigned_agent_id: selectedAgent.id,
           project_id: activeProject?.id ?? null,
           auto_execute: true,
+          attachment_ids: taskAttachments.map((attachment) => attachment.file_id),
         }),
       });
-      if (!res.ok) throw new Error("Gagal menugaskan agen.");
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Gagal menugaskan agen.");
+      }
       setNewTaskTitle("");
       setNewTaskDesc("");
+      setTaskAttachments([]);
       setActiveActionModal(null);
       showToast(
         `✅ Tugas diberikan ke ${getShortFirstName(selectedAgent, selectedAgentIndex)} (${selectedAgentStation?.optimalModel || "Smart AI"}) & sedang dikerjakan otomatis!`,
@@ -2114,6 +2136,65 @@ export default function VirtualOffice3D({
       showToast(err instanceof Error ? err.message : "Gagal membuat tugas.");
     } finally {
       setSubmittingTask(false);
+    }
+  }
+
+  async function handleTaskFilesSelected(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const selectedFiles = Array.from(event.currentTarget.files ?? []);
+    const remainingSlots = Math.max(0, 5 - taskAttachments.length);
+    const files = selectedFiles.slice(0, remainingSlots);
+    event.currentTarget.value = "";
+    if (files.length === 0) return;
+
+    setTaskUploadError(
+      selectedFiles.length > remainingSlots
+        ? "Maksimal 5 file lampiran."
+        : "",
+    );
+    setUploadingTaskFiles(true);
+    try {
+      for (const file of files) {
+        const attachment = await uploadAttachment(file);
+        setTaskAttachments((previous) => [...previous, attachment]);
+      }
+    } catch (err) {
+      setTaskUploadError(
+        err instanceof Error ? err.message : "Gagal mengunggah file.",
+      );
+    } finally {
+      setUploadingTaskFiles(false);
+    }
+  }
+
+  async function handleChatFilesSelected(
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const selectedFiles = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (selectedFiles.length === 0) return;
+
+    const remainingSlots = Math.max(0, 5 - chatAttachments.length);
+    const files = selectedFiles.slice(0, remainingSlots);
+    setChatUploadError(
+      selectedFiles.length > remainingSlots
+        ? "Maksimal 5 file lampiran."
+        : "",
+    );
+
+    setUploadingChatFiles(true);
+    try {
+      for (const file of files) {
+        const attachment = await uploadAttachment(file);
+        setChatAttachments((previous) => [...previous, attachment]);
+      }
+    } catch (err) {
+      setChatUploadError(
+        err instanceof Error ? err.message : "Gagal mengunggah file.",
+      );
+    } finally {
+      setUploadingChatFiles(false);
     }
   }
 
@@ -2135,6 +2216,7 @@ export default function VirtualOffice3D({
           agent_id: selectedAgent.id,
           project_id: activeProject?.id ?? null,
           model: "auto",
+          attachment_ids: chatAttachments.map((item) => item.file_id),
         }),
       });
       const data = await res.json();
@@ -2142,6 +2224,7 @@ export default function VirtualOffice3D({
       setChatReply(data.message || "Siap, sedang saya kerjakan.");
       setChatModelUsed(data.model_used || "");
       setChatInput("");
+      setChatAttachments([]);
     } catch (err) {
       setChatReply(
         err instanceof Error ? err.message : "Gagal menghubungi agen.",
@@ -2497,6 +2580,64 @@ export default function VirtualOffice3D({
                 className={INPUT}
               />
             </div>
+            <div className="space-y-2">
+              <input
+                ref={taskFileInputRef}
+                type="file"
+                accept=".xlsx,.xlsm,.csv,image/png,image/jpeg,image/webp"
+                multiple
+                className="hidden"
+                onChange={handleTaskFilesSelected}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => taskFileInputRef.current?.click()}
+                  disabled={
+                    uploadingTaskFiles ||
+                    submittingTask ||
+                    taskAttachments.length >= 5
+                  }
+                  className={BTN_GHOST}
+                >
+                  {uploadingTaskFiles ? "Mengunggah..." : "📎 Upload File"}
+                </button>
+                <span className="text-[11px] text-slate-500">
+                  Excel .xlsx/.xlsm, CSV, atau gambar · maks. 5 file, 10 MB/file
+                </span>
+              </div>
+              {taskAttachments.length > 0 && (
+                <ul className="space-y-1">
+                  {taskAttachments.map((attachment) => (
+                    <li
+                      key={attachment.file_id}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300"
+                    >
+                      <span className="truncate">📎 {attachment.filename}</span>
+                      <button
+                        type="button"
+                        aria-label={`Hapus ${attachment.filename}`}
+                        onClick={() =>
+                          setTaskAttachments((previous) =>
+                            previous.filter(
+                              (item) => item.file_id !== attachment.file_id,
+                            ),
+                          )
+                        }
+                        className="shrink-0 text-slate-400 hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {taskUploadError && (
+                <p role="alert" className="text-xs text-red-300">
+                  {taskUploadError}
+                </p>
+              )}
+            </div>
             <div className="flex items-center justify-between gap-3">
               <select
                 value={newTaskPriority}
@@ -2522,7 +2663,7 @@ export default function VirtualOffice3D({
                 </button>
                 <button
                   type="submit"
-                  disabled={submittingTask}
+                  disabled={submittingTask || uploadingTaskFiles}
                   className={BTN_PRIMARY}
                 >
                   {submittingTask

@@ -78,10 +78,33 @@ class Task(Base):
         back_populates="assigned_tasks"
     )
 
+    attachments = relationship(
+        "TaskAttachment",
+        back_populates="task",
+        cascade="all, delete-orphan",
+    )
+
     project = relationship(
         "Project",
         back_populates="tasks"
     )
+
+
+class TaskAttachment(Base):
+    __tablename__ = "task_attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(
+        Integer,
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    file_id = Column(String(32), nullable=False)
+    filename = Column(String, nullable=False)
+    kind = Column(String(20), nullable=False)
+
+    task = relationship("Task", back_populates="attachments")
 
 
 class ActivityLog(Base):

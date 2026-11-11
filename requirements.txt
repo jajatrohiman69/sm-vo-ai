@@ -7,10 +7,12 @@ h11==0.16.0
 httptools==0.9.0
 idna==3.20
 openai==3.49.0
+openpyxl==3.1.5
 opentelemetry-api==1.45.2
 pydantic==2.14.3
 pydantic-settings==2.16.2
 pydantic_core==2.50.4
+python-multipart==0.0.33
 python-dotenv==1.2.4
 PyYAML==6.0.3
 SQLAlchemy==2.1.8

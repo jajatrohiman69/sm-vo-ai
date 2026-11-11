@@ -11,11 +11,13 @@ from fastapi import (
     Depends,
     HTTPException,
     BackgroundTasks,
+    File,
     Request,
     Response,
+    UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
 
@@ -28,6 +30,7 @@ from models import (
     ChatMessage,
     TaskPlan,
     TaskPlanItem,
+    TaskAttachment,
     SocialConfig,
     SocialConfig,
     SocialAccount,
@@ -46,6 +49,15 @@ from ai_service import (
     AVAILABLE_MODELS,
     TASK_OPTIMAL_MODEL_MAP,
     resolve_ai_model,
+)
+from excel_vba_service import (
+    STORAGE_DIR,
+    extract_and_compile_artifacts,
+    get_uploaded_image_data_url,
+    load_upload_metadata,
+    needs_excel_vba_builder,
+    parse_uploaded_file,
+    save_upload_metadata,
 )
 from social_service import (
     verify_facebook,
@@ -184,6 +196,7 @@ class TaskCreate(BaseModel):
     assigned_agent_id: Optional[int] = None
     project_id: Optional[int] = None
     auto_execute: bool = False
+    attachment_ids: list[str] = Field(default_factory=list, max_length=5)
 
 
 class TaskUpdate(BaseModel):
@@ -204,6 +217,7 @@ class AIChatRequest(BaseModel):
     model: Optional[str] = "auto"
     agent_id: Optional[int] = None
     project_id: Optional[int] = None
+    attachment_ids: list[str] = Field(default_factory=list, max_length=5)
 
 
 class TaskPlanGenerateRequest(BaseModel):
@@ -671,13 +685,30 @@ def execute_approved_plan(task_ids: list[int]):
                 )
                 else ""
             )
+            image_urls = []
+            attachment_context = []
+            for attachment in task.attachments:
+                upload = load_upload_metadata(attachment.file_id)
+                if upload is None:
+                    raise RuntimeError(
+                        f"Lampiran '{attachment.filename}' tidak ditemukan."
+                    )
+                attachment_context.append(upload["extracted_text"])
+                image_url = get_uploaded_image_data_url(attachment.file_id)
+                if image_url:
+                    image_urls.append(image_url)
 
             result = execute_agent_task(
                 agent=agent,
                 project=task.project,
                 task=task,
                 prior_results=prior_results,
-                extra_context=extra_context,
+                extra_context="\n\n".join(
+                    part
+                    for part in (extra_context, *attachment_context)
+                    if part
+                ),
+                image_urls=image_urls,
             )
 
             task.result = result
@@ -1097,6 +1128,16 @@ def create_task(
             detail="Judul task tidak boleh kosong.",
         )
 
+    attachment_metadata = []
+    for file_id in dict.fromkeys(payload.attachment_ids):
+        upload = load_upload_metadata(file_id)
+        if upload is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Salah satu file lampiran tidak ditemukan. Unggah ulang file tersebut.",
+            )
+        attachment_metadata.append(upload)
+
     if payload.assigned_agent_id is not None:
         agent = (
             db.query(Agent)
@@ -1134,6 +1175,16 @@ def create_task(
 
     db.add(task)
     db.flush()
+
+    for upload in attachment_metadata:
+        db.add(
+            TaskAttachment(
+                task_id=task.id,
+                file_id=upload["file_id"],
+                filename=upload["filename"],
+                kind=upload["kind"],
+            )
+        )
 
     should_execute = bool(payload.auto_execute and task.assigned_agent_id)
 
@@ -1884,6 +1935,100 @@ def get_available_ai_models():
     }
 
 
+@app.post("/ai/files/upload")
+async def upload_ai_file(file: UploadFile = File(...)):
+    filename = os.path.basename((file.filename or "").replace("\\", "/"))
+    extension = os.path.splitext(filename)[1].lower()
+    allowed_extensions = {
+        ".xlsx",
+        ".xlsm",
+        ".csv",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+    }
+    if extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=415,
+            detail="Format file tidak didukung. Gunakan .xlsx, .xlsm, .csv, PNG, JPG, atau WEBP.",
+        )
+
+    content = await file.read(10 * 1024 * 1024 + 1)
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=413,
+            detail="Ukuran setiap file maksimal 10 MB.",
+        )
+    if not content:
+        raise HTTPException(status_code=400, detail="File kosong.")
+
+    trusted_mime_types = {
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
+        ".csv": "text/csv",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+    }
+    if extension in {".png", ".jpg", ".jpeg", ".webp"}:
+        valid_image = (
+            (extension == ".png" and content.startswith(b"\x89PNG\r\n\x1a\n"))
+            or (extension in {".jpg", ".jpeg"} and content.startswith(b"\xff\xd8\xff"))
+            or (
+                extension == ".webp"
+                and len(content) >= 12
+                and content[:4] == b"RIFF"
+                and content[8:12] == b"WEBP"
+            )
+        )
+        if not valid_image:
+            raise HTTPException(
+                status_code=415,
+                detail="Isi file tidak sesuai dengan format gambar yang dipilih.",
+            )
+    elif extension in {".xlsx", ".xlsm"} and not content.startswith(b"PK"):
+        raise HTTPException(
+            status_code=415,
+            detail="Isi file tidak dikenali sebagai workbook Excel.",
+        )
+    elif extension == ".csv":
+        try:
+            content.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(
+                status_code=415,
+                detail="CSV harus menggunakan encoding UTF-8.",
+            ) from exc
+
+    upload = parse_uploaded_file(
+        filename,
+        content,
+        trusted_mime_types[extension],
+    )
+    save_upload_metadata(upload)
+    return {
+        key: value
+        for key, value in upload.items()
+        if key != "image_data_url"
+    }
+
+
+@app.get("/files/download/{stored_name}")
+def download_generated_file(stored_name: str):
+    if (
+        os.path.basename(stored_name) != stored_name
+        or not re.fullmatch(r"[A-Za-z0-9._-]+", stored_name)
+    ):
+        raise HTTPException(status_code=400, detail="Nama file tidak valid.")
+
+    file_path = os.path.join(STORAGE_DIR, stored_name)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="File hasil tidak ditemukan.")
+    return FileResponse(file_path, filename=stored_name)
+
+
 @app.post("/ai/chat")
 def ai_ceo_chat(
     payload: AIChatRequest,
@@ -1896,6 +2041,20 @@ def ai_ceo_chat(
             status_code=400,
             detail="Pesan tidak boleh kosong.",
         )
+
+    attachment_metadata = []
+    image_urls = []
+    for file_id in dict.fromkeys(payload.attachment_ids):
+        upload = load_upload_metadata(file_id)
+        if upload is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Salah satu file lampiran tidak ditemukan. Unggah ulang file tersebut.",
+            )
+        attachment_metadata.append(upload)
+        image_url = get_uploaded_image_data_url(file_id)
+        if image_url:
+            image_urls.append(image_url)
 
     target_agent: Optional[Agent] = None
     if payload.agent_id is not None:
@@ -1922,7 +2081,13 @@ def ai_ceo_chat(
     user_message = ChatMessage(
         session_id=payload.session_id,
         role="user",
-        content=message,
+        content=message
+        + (
+            "\n\nLampiran: "
+            + ", ".join(upload["filename"] for upload in attachment_metadata)
+            if attachment_metadata
+            else ""
+        ),
     )
 
     db.add(user_message)
@@ -2016,14 +2181,29 @@ ATURAN DISKUSI DENGAN FOUNDER:
             else ""
         )
     )
+    attachment_context = "\n\n".join(
+        upload["extracted_text"]
+        for upload in attachment_metadata
+        if upload.get("kind") != "image"
+    )
+    message_for_ai = (
+        message
+        + ("\n\nKONTEKS FILE LAMPIRAN:\n" + attachment_context if attachment_context else "")
+    )
 
     try:
         response = ask_claude(
-            message=message,
+            message=message_for_ai,
             system_prompt=system_prompt,
             history=history,
             model=payload.model,
             agent_name=responder_label,
+            image_urls=image_urls,
+        )
+        response, _ = extract_and_compile_artifacts(
+            response,
+            prefix=f"{responder_label}_Workbook",
+            force_excel_if_table=needs_excel_vba_builder(message_for_ai),
         )
 
         assistant_message = ChatMessage(

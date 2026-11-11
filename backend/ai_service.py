@@ -3,6 +3,11 @@ import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from excel_vba_service import (
+    EXCEL_VBA_BUILDER_INSTRUCTIONS,
+    extract_and_compile_artifacts,
+    needs_excel_vba_builder,
+)
 
 load_dotenv()
 
@@ -197,6 +202,7 @@ def ask_claude(
     history: list[dict] | None = None,
     model: str | None = None,
     agent_name: str = "AI CEO",
+    image_urls: list[str] | None = None,
 ) -> str:
     is_ceo = not agent_name or agent_name.strip().upper() == "AI CEO"
     chosen_model = resolve_ai_model(
@@ -204,16 +210,22 @@ def ask_claude(
         task_type="ceo_chat" if is_ceo else "agent_chat",
         agent_role_or_name=agent_name,
     )
+    if image_urls and chosen_model == "deepseek-v4.1-flash":
+        chosen_model = "claude-sonnet-5"
 
-    messages = [
+    base_sys = system_prompt or (
+        "Kamu adalah AI CEO Solusi Macro Virtual HQ. "
+        "Bantu Founder mengelola bisnis secara profesional. "
+        "Gunakan Bahasa Indonesia yang jelas dan profesional. "
+        "Gunakan Markdown normal tanpa meng-escape tanda baca."
+    )
+    if needs_excel_vba_builder(message) or image_urls:
+        base_sys = base_sys + "\n\n" + EXCEL_VBA_BUILDER_INSTRUCTIONS
+
+    messages: list[dict] = [
         {
             "role": "system",
-            "content": system_prompt or (
-                "Kamu adalah AI CEO Solusi Macro Virtual HQ. "
-                "Bantu Founder mengelola bisnis secara profesional. "
-                "Gunakan Bahasa Indonesia yang jelas dan profesional. "
-                "Gunakan Markdown normal tanpa meng-escape tanda baca."
-            )
+            "content": base_sys,
         }
     ]
 
@@ -228,16 +240,25 @@ def ask_claude(
                     "content": content
                 })
 
-    messages.append({
-        "role": "user",
-        "content": message
-    })
+    if image_urls:
+        multimodal_content: list[dict] = [{"type": "text", "text": message}]
+        for url in image_urls[:5]:
+            if url:
+                multimodal_content.append(
+                    {"type": "image_url", "image_url": {"url": url}}
+                )
+        messages.append({"role": "user", "content": multimodal_content})
+    else:
+        messages.append({
+            "role": "user",
+            "content": message
+        })
 
     content, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=messages,
-        max_tokens=2500,
-        temperature=0.65,
+        max_tokens=3600,
+        temperature=0.55,
     )
     return content
 
@@ -330,6 +351,7 @@ def execute_agent_task(
     prior_results=None,
     model: str | None = None,
     extra_context: str = "",
+    image_urls: list[str] | None = None,
 ) -> str:
     # Membaca data Agent, Project, dan Task.
     # Bisa berupa dictionary atau SQLAlchemy object.
@@ -363,6 +385,8 @@ def execute_agent_task(
         task_type="agent_exec",
         agent_role_or_name=f"{agent_name} {agent_role} {agent_department}",
     )
+    if image_urls and chosen_model == "deepseek-v4.1-flash":
+        chosen_model = "claude-sonnet-5"
 
     project_name = get_value(
         project,
@@ -444,6 +468,11 @@ Sebutkan asumsi, keterbatasan, atau kebutuhan tambahan.
 Pastikan hasil pekerjaan bisa ditinjau dan dievaluasi oleh Founder.
 """
 
+    if image_urls or needs_excel_vba_builder(
+        f"{task_title} {task_description} {agent_role} {extra_context}"
+    ):
+        system_prompt = system_prompt + "\n\n" + EXCEL_VBA_BUILDER_INSTRUCTIONS
+
     user_prompt = f"""
 PROJECT:
 {project_name}
@@ -471,6 +500,17 @@ Kerjakan task ini sekarang sesuai jabatan dan tanggung jawabmu.
 Berikan hasil pekerjaan yang lengkap, konkret, dan bisa ditinjau Founder.
 """
 
+    user_content: str | list[dict] = user_prompt
+    if image_urls:
+        user_content = [{"type": "text", "text": user_prompt}]
+        user_content.extend(
+            {
+                "type": "image_url",
+                "image_url": {"url": image_url},
+            }
+            for image_url in image_urls[:5]
+        )
+
     result, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=[
@@ -480,10 +520,10 @@ Berikan hasil pekerjaan yang lengkap, konkret, dan bisa ditinjau Founder.
             },
             {
                 "role": "user",
-                "content": user_prompt
+                "content": user_content
             }
         ],
-        max_tokens=3500,
+        max_tokens=4000,
         temperature=0.3,
     )
 
@@ -492,7 +532,14 @@ Berikan hasil pekerjaan yang lengkap, konkret, dan bisa ditinjau Founder.
             f"AI Agent {agent_name} tidak menghasilkan output."
         )
 
-    return result
+    compiled_result, _ = extract_and_compile_artifacts(
+        result,
+        prefix=task_title,
+        force_excel_if_table=needs_excel_vba_builder(
+            f"{task_title} {task_description} {agent_role} {extra_context}"
+        ),
+    )
+    return compiled_result
 
 
 # ============================================================

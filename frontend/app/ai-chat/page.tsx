@@ -1,10 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { API_URL } from "@/lib/api";
+import { API_URL, uploadAttachment } from "@/lib/api";
+import type { UploadedAttachment } from "@/lib/api";
 
 type Agent = {
   id: number;
@@ -109,6 +116,10 @@ export default function AICEOChatPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [attachmentError, setAttachmentError] = useState("");
 
   // Load Agents & Projects
   useEffect(() => {
@@ -185,15 +196,23 @@ export default function AICEOChatPage() {
 
     const message = input.trim();
 
-    if (!message || loading) return;
+    if ((!message && attachments.length === 0) || loading || uploadingFiles) {
+      return;
+    }
+    const prompt = message || "Tolong analisis file yang saya lampirkan.";
+    const visibleMessage =
+      attachments.length > 0
+        ? `${prompt}\n\n📎 ${attachments.map((file) => file.filename).join(", ")}`
+        : prompt;
 
     setError("");
+    setAttachmentError("");
     setInput("");
     setLoading(true);
 
     setMessages((previous) => [
       ...previous,
-      { role: "user", content: message },
+      { role: "user", content: visibleMessage },
     ]);
 
     try {
@@ -203,11 +222,12 @@ export default function AICEOChatPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message,
+          message: prompt,
           session_id: sessionId,
           agent_id: activeAgent ? activeAgent.id : null,
           project_id: selectedProjectId ? Number(selectedProjectId) : null,
           model: selectedModel,
+          attachment_ids: attachments.map((file) => file.file_id),
         }),
       });
 
@@ -228,11 +248,39 @@ export default function AICEOChatPage() {
           content: data.message,
         },
       ]);
+      setAttachments([]);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Terjadi kesalahan.";
       setError(errMsg);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleFilesSelected(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.currentTarget.files ?? []);
+    const remainingSlots = Math.max(0, 5 - attachments.length);
+    const files = selectedFiles.slice(0, remainingSlots);
+    event.currentTarget.value = "";
+    if (files.length === 0) return;
+
+    setAttachmentError(
+      selectedFiles.length > remainingSlots
+        ? "Maksimal 5 file lampiran."
+        : "",
+    );
+    setUploadingFiles(true);
+    try {
+      for (const file of files) {
+        const attachment = await uploadAttachment(file);
+        setAttachments((previous) => [...previous, attachment]);
+      }
+    } catch (err) {
+      setAttachmentError(
+        err instanceof Error ? err.message : "Gagal mengunggah file.",
+      );
+    } finally {
+      setUploadingFiles(false);
     }
   }
 
@@ -578,6 +626,14 @@ export default function AICEOChatPage() {
       {/* INPUT */}
       <div className="border-t border-white/10 px-4 md:px-8 py-4 bg-[#09090b]">
         <form onSubmit={sendMessage} className="max-w-4xl mx-auto">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xlsm,.csv,image/png,image/jpeg,image/webp"
+            multiple
+            className="hidden"
+            onChange={handleFilesSelected}
+          />
           <div className="flex gap-3 items-end bg-[#131316] border border-white/10 rounded-2xl p-3 focus-within:border-blue-500/50">
             <textarea
               value={input}
@@ -594,14 +650,62 @@ export default function AICEOChatPage() {
               className="flex-1 bg-transparent outline-none resize-none text-sm text-white placeholder:text-slate-500 p-2"
             />
 
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-5 py-3 text-sm font-semibold transition"
-            >
-              {loading ? "..." : "Kirim ↑"}
-            </button>
+            <div className="flex shrink-0 flex-col gap-2">
+              <button
+                type="button"
+                aria-label="Upload lampiran"
+                title="Upload Excel, CSV, atau gambar"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={
+                  loading || uploadingFiles || attachments.length >= 5
+                }
+                className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 transition hover:bg-white/10 disabled:opacity-40"
+              >
+                {uploadingFiles ? "..." : "📎"}
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  loading ||
+                  uploadingFiles ||
+                  (!input.trim() && attachments.length === 0)
+                }
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-5 py-3 text-sm font-semibold transition"
+              >
+                {loading ? "..." : "Kirim ↑"}
+              </button>
+            </div>
           </div>
+          {(attachments.length > 0 || attachmentError) && (
+            <div className="mt-2 space-y-2">
+              {attachments.map((file) => (
+                <span
+                  key={file.file_id}
+                  className="mr-2 inline-flex max-w-full items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300"
+                >
+                  <span className="max-w-[240px] truncate">📎 {file.filename}</span>
+                  <button
+                    type="button"
+                    aria-label={`Hapus ${file.filename}`}
+                    disabled={loading}
+                    onClick={() =>
+                      setAttachments((previous) =>
+                        previous.filter((item) => item.file_id !== file.file_id),
+                      )
+                    }
+                    className="text-slate-400 hover:text-white disabled:opacity-40"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+              {attachmentError && (
+                <p role="alert" className="text-xs text-red-300">
+                  {attachmentError}
+                </p>
+              )}
+            </div>
+          )}
         </form>
       </div>
     </section>
