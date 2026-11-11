@@ -200,6 +200,15 @@ class TaskExecuteRequest(BaseModel):
 class AIChatRequest(BaseModel):
     message: str
     session_id: str = "default"
+    model: Optional[str] = "auto"
+
+
+@app.get("/ai/models")
+def get_available_ai_models():
+    return {
+        "default": "auto",
+        "models": AVAILABLE_MODELS,
+    }
     agent_id: Optional[int] = None
     project_id: Optional[int] = None
 
@@ -1722,7 +1731,16 @@ def test_ai_connection():
 
 @app.get("/ai/chat/history")
 def get_chat_history(
-    session_id: str = "default",
+    session_id: str = "default"
+    model: Optional[str] = "auto"
+
+
+@app.get("/ai/models")
+def get_available_ai_models():
+    return {
+        "default": "auto",
+        "models": AVAILABLE_MODELS,
+    },
     limit: int = 100,
     db: Session = Depends(get_db),
 ):
@@ -1750,7 +1768,16 @@ def get_chat_history(
 
 @app.delete("/ai/chat/history")
 def delete_chat_history(
-    session_id: str = "default",
+    session_id: str = "default"
+    model: Optional[str] = "auto"
+
+
+@app.get("/ai/models")
+def get_available_ai_models():
+    return {
+        "default": "auto",
+        "models": AVAILABLE_MODELS,
+    },
     db: Session = Depends(get_db),
 ):
     db.query(ChatMessage).filter(
@@ -1898,6 +1925,7 @@ ATURAN DISKUSI DENGAN FOUNDER:
             message=message,
             system_prompt=system_prompt,
             history=history,
+            model=payload.model,
         )
 
         assistant_message = ChatMessage(
@@ -1921,6 +1949,7 @@ ATURAN DISKUSI DENGAN FOUNDER:
             "success": True,
             "session_id": payload.session_id,
             "agent_name": responder_label,
+            "model_used": resolve_ai_model(payload.model, task_type="ceo_chat"),
             "message": response,
             "created_at": assistant_message.created_at,
         }
@@ -2580,6 +2609,7 @@ class SocialGenerateRequest(BaseModel):
     source_task_id: Optional[int] = None
     project_id: Optional[int] = None
     scheduled_at: Optional[str] = None
+    model: Optional[str] = "auto"
     save_as_draft: bool = True
 
 
@@ -2602,6 +2632,7 @@ class SocialPostCreateRequest(BaseModel):
     content_threads: Optional[str] = None
     media_url: Optional[str] = None
     scheduled_at: Optional[str] = None
+    model: Optional[str] = "auto"
     source_task_id: Optional[int] = None
     project_id: Optional[int] = None
 
@@ -2617,6 +2648,7 @@ class SocialPostUpdateRequest(BaseModel):
     content_threads: Optional[str] = None
     media_url: Optional[str] = None
     scheduled_at: Optional[str] = None
+    model: Optional[str] = "auto"
 
 
 class SocialPushRequest(BaseModel):
@@ -2841,6 +2873,7 @@ def generate_social_post_endpoint(
     try:
         raw_output = generate_social_content(
             topic=payload.topic.strip(),
+            model=payload.model,
             platforms=platforms,
             source_context=source_context,
             winning_posts_context=_get_winning_posts_context(db),
@@ -2879,6 +2912,7 @@ def generate_social_post_endpoint(
         post = SocialPost(
             title=generated["title"],
             topic=payload.topic.strip(),
+            model=payload.model,
             platforms=",".join(platforms),
             content_facebook=generated["facebook"],
             content_instagram=generated["instagram"],
@@ -2907,6 +2941,7 @@ def generate_social_post_endpoint(
     return {
         "success": True,
         "generated": generated,
+        "model_used": resolve_ai_model(payload.model, task_type="social_post"),
         "post": saved_post,
     }
 
@@ -3545,6 +3580,7 @@ class SocialCalendarGenerateRequest(BaseModel):
     start_date: Optional[str] = None
     post_time: str = "09:00"
     auto_schedule: bool = True
+    model: Optional[str] = "auto"
     platforms: list[str] = Field(
         default_factory=lambda: [
             "facebook",
@@ -3564,6 +3600,7 @@ class SocialRefineRequest(BaseModel):
     platform: str
     instruction: str = Field(min_length=1, max_length=2000)
     current_content: Optional[str] = None
+    model: Optional[str] = "auto"
 
 
 @app.post("/social/generate-calendar")
@@ -3587,6 +3624,7 @@ def generate_social_calendar_endpoint(
     try:
         raw_output = generate_social_calendar(
             campaign_theme=payload.campaign_theme.strip(),
+            model=payload.model,
             days=payload.days,
             platforms=platforms,
             tone=payload.tone
@@ -3675,6 +3713,7 @@ def generate_social_calendar_endpoint(
     return {
         "success": True,
         "campaign_name": campaign_name,
+        "model_used": resolve_ai_model(payload.model, task_type="calendar"),
         "count": len(created_posts),
         "posts": [_serialize_social_post(p) for p in created_posts],
     }
@@ -3718,6 +3757,7 @@ def refine_social_post_platform_endpoint(
         refined = refine_social_platform_content(
             platform=p,
             current_content=existing_text,
+            model=payload.model,
             instruction=payload.instruction.strip(),
         )
     except Exception as exc:
@@ -3742,6 +3782,7 @@ def refine_social_post_platform_endpoint(
         "success": True,
         "platform": p,
         "refined_content": refined,
+        "model_used": resolve_ai_model(payload.model, task_type="refine"),
         "post": _serialize_social_post(post),
     }
 
@@ -3840,6 +3881,7 @@ class SocialWinningReplicateRequest(BaseModel):
         "Tajam, relevan, memancing diskusi tinggi & shareable"
     )
     scheduled_at: Optional[str] = None
+    model: Optional[str] = "auto"
     save_as_draft: bool = True
 
 
@@ -4075,6 +4117,7 @@ def analyze_and_replicate_winning_endpoint(
     try:
         raw_output = analyze_and_replicate_winning_posts(
             winning_posts=serialized_top,
+            model=payload.model,
             new_topic=payload.new_topic or "",
             platforms=platforms,
             tone=payload.tone
@@ -4139,6 +4182,7 @@ def analyze_and_replicate_winning_endpoint(
         "success": True,
         "pattern_analysis": pattern_analysis,
         "generated": generated,
+        "model_used": resolve_ai_model(payload.model, task_type="social_post"),
         "post": saved_post,
     }
 
