@@ -41,10 +41,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0b1020] p-6 text-white">
+    <main className="flex min-h-screen items-center justify-center bg-[#09090b] p-6 text-white">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151d32] p-8 shadow-2xl"
+        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#131316] p-8 shadow-2xl"
       >
         <p className="text-xs font-semibold tracking-[0.2em] text-blue-300">
           SOLUSI MACRO · VIRTUAL HQ
@@ -63,7 +63,7 @@ export default function LoginPage() {
           required
           value={username}
           onChange={(event) => setUsername(event.target.value)}
-          className="mt-2 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm outline-none focus:border-blue-400"
+          className="mt-2 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm outline-none focus:border-blue-400"
         />
 
         <label className="mt-5 block text-sm text-slate-300" htmlFor="password">
@@ -76,7 +76,7 @@ export default function LoginPage() {
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="mt-2 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm outline-none focus:border-blue-400"
+          className="mt-2 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm outline-none focus:border-blue-400"
         />
 
         {error && (

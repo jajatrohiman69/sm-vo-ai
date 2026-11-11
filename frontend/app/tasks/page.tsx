@@ -666,7 +666,7 @@ export default function TasksPage() {
             <button
               type="button"
               onClick={() => void loadData(true)}
-              className="rounded-xl border border-white/10 bg-[#151d32] px-4 py-2.5 text-xs font-medium text-slate-300 hover:bg-white/5 transition"
+              className="rounded-xl border border-white/10 bg-[#131316] px-4 py-2.5 text-xs font-medium text-slate-300 hover:bg-white/5 transition"
             >
               ↻ Refresh
             </button>
@@ -709,7 +709,7 @@ export default function TasksPage() {
                 className={`rounded-2xl border p-5 text-left transition ${
                   active
                     ? "border-blue-400 bg-blue-500/10"
-                    : "border-white/10 bg-[#151d32] hover:border-white/25"
+                    : "border-white/10 bg-[#131316] hover:border-white/25"
                 }`}
               >
                 <p className="text-xs font-medium text-slate-400">
@@ -722,7 +722,7 @@ export default function TasksPage() {
         </section>
 
         {/* CREATE / EDIT TASK */}
-        <section className="rounded-2xl border border-white/10 bg-[#151d32] p-6">
+        <section className="rounded-2xl border border-white/10 bg-[#131316] p-6">
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold">
@@ -759,7 +759,7 @@ export default function TasksPage() {
                   setForm({ ...form, title: event.target.value })
                 }
                 placeholder="Contoh: Analisis kebutuhan dashboard penjualan UMKM"
-                className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-400"
+                className="w-full rounded-xl border border-white/10 bg-[#09090b] px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-400"
                 required
               />
             </div>
@@ -776,7 +776,7 @@ export default function TasksPage() {
                 }
                 placeholder="Jelaskan detail pekerjaan, konteks bisnis, dan hasil konkret yang diharapkan..."
                 rows={3}
-                className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-400"
+                className="w-full rounded-xl border border-white/10 bg-[#09090b] px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-400"
               />
             </div>
 
@@ -794,7 +794,7 @@ export default function TasksPage() {
                       assigned_agent_id: event.target.value,
                     })
                   }
-                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-3 text-sm text-white outline-none focus:border-blue-400"
+                  className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3 py-3 text-sm text-white outline-none focus:border-blue-400"
                 >
                   <option value="">-- Unassigned --</option>
 
@@ -819,7 +819,7 @@ export default function TasksPage() {
                       project_id: event.target.value,
                     })
                   }
-                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-3 text-sm text-white outline-none focus:border-blue-400"
+                  className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3 py-3 text-sm text-white outline-none focus:border-blue-400"
                 >
                   <option value="">-- No project --</option>
 
@@ -844,7 +844,7 @@ export default function TasksPage() {
                       priority: event.target.value,
                     })
                   }
-                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-3 text-sm text-white outline-none focus:border-blue-400"
+                  className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3 py-3 text-sm text-white outline-none focus:border-blue-400"
                 >
                   <option value="Low">Low</option>
                   <option value="Normal">Normal</option>
@@ -866,7 +866,7 @@ export default function TasksPage() {
                     onChange={(event) =>
                       setForm({ ...form, auto_execute: event.target.checked })
                     }
-                    className="h-4 w-4 rounded border-white/20 bg-[#0b1020] text-blue-600"
+                    className="h-4 w-4 rounded border-white/20 bg-[#09090b] text-blue-600"
                   />
                   <span>
                     Jalankan otomatis dengan AI Agent sekarang{" "}
@@ -912,7 +912,7 @@ export default function TasksPage() {
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
-                className="rounded-xl border border-white/10 bg-[#151d32] px-3 py-2 text-xs text-slate-200 outline-none"
+                className="rounded-xl border border-white/10 bg-[#131316] px-3 py-2 text-xs text-slate-200 outline-none"
               >
                 <option value="All">Semua Status</option>
                 <option value="Pending">Pending</option>
@@ -925,7 +925,7 @@ export default function TasksPage() {
               <select
                 value={projectFilter}
                 onChange={(event) => setProjectFilter(event.target.value)}
-                className="rounded-xl border border-white/10 bg-[#151d32] px-3 py-2 text-xs text-slate-200 outline-none"
+                className="rounded-xl border border-white/10 bg-[#131316] px-3 py-2 text-xs text-slate-200 outline-none"
               >
                 <option value="All">Semua Project</option>
                 {projects.map((project) => (
@@ -938,7 +938,7 @@ export default function TasksPage() {
               <select
                 value={agentFilter}
                 onChange={(event) => setAgentFilter(event.target.value)}
-                className="rounded-xl border border-white/10 bg-[#151d32] px-3 py-2 text-xs text-slate-200 outline-none"
+                className="rounded-xl border border-white/10 bg-[#131316] px-3 py-2 text-xs text-slate-200 outline-none"
               >
                 <option value="All">Semua Agent</option>
                 {agents.map((agent) => (
@@ -951,11 +951,11 @@ export default function TasksPage() {
           </div>
 
           {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-[#151d32] p-10 text-center text-sm text-slate-400">
+            <div className="rounded-2xl border border-white/10 bg-[#131316] p-10 text-center text-sm text-slate-400">
               Loading tasks...
             </div>
           ) : filteredTasks.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/15 bg-[#151d32]/60 p-12 text-center">
+            <div className="rounded-2xl border border-dashed border-white/15 bg-[#131316]/60 p-12 text-center">
               <div className="text-4xl">📋</div>
               <h3 className="mt-3 font-semibold text-white">
                 Tidak ada task yang sesuai
@@ -975,7 +975,7 @@ export default function TasksPage() {
                 return (
                   <article
                     key={task.id}
-                    className="overflow-hidden rounded-2xl border border-white/10 bg-[#151d32]"
+                    className="overflow-hidden rounded-2xl border border-white/10 bg-[#131316]"
                   >
                     <div className="p-5 md:p-6">
                       <div className="flex flex-col justify-between gap-4 md:flex-row">
@@ -1146,7 +1146,7 @@ export default function TasksPage() {
                             taskId={task.id}
                           />
                         ) : (
-                          <div className="mt-5 rounded-xl border border-white/10 bg-[#0b1020] p-5 text-xs text-slate-500">
+                          <div className="mt-5 rounded-xl border border-white/10 bg-[#09090b] p-5 text-xs text-slate-500">
                             Belum ada hasil pekerjaan yang tersimpan.
                           </div>
                         )
@@ -1186,7 +1186,7 @@ export default function TasksPage() {
                                   }
                                   rows={3}
                                   placeholder="Contoh: Disetujui. Lanjutkan ke tahap implementasi..."
-                                  className="w-full rounded-xl border border-green-400/30 bg-[#0b1020] p-3 text-xs text-white outline-none focus:border-green-400"
+                                  className="w-full rounded-xl border border-green-400/30 bg-[#09090b] p-3 text-xs text-white outline-none focus:border-green-400"
                                 />
 
                                 <div className="flex flex-wrap gap-2">
@@ -1236,7 +1236,7 @@ export default function TasksPage() {
                                   }
                                   rows={3}
                                   placeholder="Jelaskan bagian yang perlu diperbaiki atau dilengkapi oleh AI Agent..."
-                                  className="w-full rounded-xl border border-purple-400/30 bg-[#0b1020] p-3 text-xs text-white outline-none focus:border-purple-400"
+                                  className="w-full rounded-xl border border-purple-400/30 bg-[#09090b] p-3 text-xs text-white outline-none focus:border-purple-400"
                                 />
 
                                 <div className="flex flex-wrap gap-2">

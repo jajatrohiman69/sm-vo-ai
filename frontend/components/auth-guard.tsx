@@ -75,8 +75,8 @@ export default function AuthGuard({
 
   if (authState !== "authenticated") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0b1020] p-6 text-white">
-        <div className="max-w-md rounded-2xl border border-white/10 bg-[#151d32] p-6 text-center">
+      <main className="flex min-h-screen items-center justify-center bg-[#09090b] p-6 text-white">
+        <div className="max-w-md rounded-2xl border border-white/10 bg-[#131316] p-6 text-center">
           <p className="font-semibold">
             {authState === "checking" ? "Memeriksa sesi..." : "Sesi Founder"}
           </p>

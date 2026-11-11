@@ -611,7 +611,7 @@ export default function TaskPlannerPage() {
         )}
 
         {/* GENERATOR */}
-        <section className="bg-[#151d32] border border-white/10 rounded-2xl p-6 mb-8">
+        <section className="bg-[#131316] border border-white/10 rounded-2xl p-6 mb-8">
           <div className="flex items-center gap-3 mb-5">
             <span className="text-3xl">✨</span>
             <div>
@@ -630,7 +630,7 @@ export default function TaskPlannerPage() {
             <select
               value={projectId}
               onChange={(event) => setProjectId(event.target.value)}
-              className="w-full rounded-xl bg-[#0b1020] border border-white/10 p-3 text-sm outline-none focus:border-blue-400"
+              className="w-full rounded-xl bg-[#09090b] border border-white/10 p-3 text-sm outline-none focus:border-blue-400"
             >
               <option value="">-- Pilih Project --</option>
               {projects.map((project) => (
@@ -651,7 +651,7 @@ export default function TaskPlannerPage() {
               onChange={(event) => setInstruction(event.target.value)}
               rows={4}
               placeholder="Jelaskan pekerjaan yang perlu direncanakan..."
-              className="w-full rounded-xl bg-[#0b1020] border border-white/10 p-4 text-sm outline-none resize-y focus:border-blue-400"
+              className="w-full rounded-xl bg-[#09090b] border border-white/10 p-4 text-sm outline-none resize-y focus:border-blue-400"
             />
           </div>
 
@@ -676,7 +676,7 @@ export default function TaskPlannerPage() {
         {/* MAIN GRID */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* PLAN LIST */}
-          <section className="bg-[#151d32] border border-white/10 rounded-2xl p-6">
+          <section className="bg-[#131316] border border-white/10 rounded-2xl p-6">
             <div className="flex justify-between items-center mb-5">
               <h2 className="font-semibold">📋 Usulan Task Plan</h2>
               <button
@@ -737,7 +737,7 @@ export default function TaskPlannerPage() {
           </section>
 
           {/* PLAN DETAIL */}
-          <section className="xl:col-span-2 bg-[#151d32] border border-white/10 rounded-2xl p-6">
+          <section className="xl:col-span-2 bg-[#131316] border border-white/10 rounded-2xl p-6">
             {!selectedPlan ? (
               <div className="min-h-64 flex flex-col items-center justify-center text-center">
                 <span className="text-5xl mb-4">🗂️</span>
@@ -792,7 +792,7 @@ export default function TaskPlannerPage() {
 
                 {/* EDIT PLAN METADATA FORM */}
                 {editingPlanMeta ? (
-                  <div className="rounded-xl border border-blue-400/30 bg-[#0b1020] p-4 mb-5 space-y-3">
+                  <div className="rounded-xl border border-blue-400/30 bg-[#09090b] p-4 mb-5 space-y-3">
                     <p className="text-xs font-semibold text-blue-300">
                       EDIT INFORMASI RENCANA KERJA
                     </p>
@@ -808,7 +808,7 @@ export default function TaskPlannerPage() {
                             title: e.target.value,
                           })
                         }
-                        className="w-full rounded-lg border border-white/10 bg-[#151d32] p-2.5 text-sm text-white outline-none focus:border-blue-400"
+                        className="w-full rounded-lg border border-white/10 bg-[#131316] p-2.5 text-sm text-white outline-none focus:border-blue-400"
                       />
                     </div>
                     <div>
@@ -824,7 +824,7 @@ export default function TaskPlannerPage() {
                             summary: e.target.value,
                           })
                         }
-                        className="w-full rounded-lg border border-white/10 bg-[#151d32] p-2.5 text-sm text-white outline-none focus:border-blue-400"
+                        className="w-full rounded-lg border border-white/10 bg-[#131316] p-2.5 text-sm text-white outline-none focus:border-blue-400"
                       />
                     </div>
                     <div>
@@ -840,7 +840,7 @@ export default function TaskPlannerPage() {
                             notes: e.target.value,
                           })
                         }
-                        className="w-full rounded-lg border border-white/10 bg-[#151d32] p-2.5 text-sm text-white outline-none focus:border-blue-400"
+                        className="w-full rounded-lg border border-white/10 bg-[#131316] p-2.5 text-sm text-white outline-none focus:border-blue-400"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -862,7 +862,7 @@ export default function TaskPlannerPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-xl bg-[#0b1020] p-4 mb-5">
+                  <div className="rounded-xl bg-[#09090b] p-4 mb-5">
                     <p className="text-xs text-slate-500 mb-2">RINGKASAN</p>
                     <p className="text-sm text-slate-300 leading-relaxed">
                       {selectedPlan.summary || "Tidak ada ringkasan."}
@@ -904,7 +904,7 @@ export default function TaskPlannerPage() {
 
                 {/* ADD / EDIT ITEM FORM */}
                 {(addingItem || editingItemId !== null) && isPendingPlan && (
-                  <div className="mb-4 rounded-xl border border-blue-400/30 bg-[#0b1020] p-4 space-y-3">
+                  <div className="mb-4 rounded-xl border border-blue-400/30 bg-[#09090b] p-4 space-y-3">
                     <p className="text-xs font-semibold text-blue-300">
                       {editingItemId
                         ? "EDIT ITEM TASK"
@@ -921,7 +921,7 @@ export default function TaskPlannerPage() {
                           setItemForm({ ...itemForm, title: e.target.value })
                         }
                         placeholder="Judul pekerjaan..."
-                        className="w-full rounded-lg border border-white/10 bg-[#151d32] p-2.5 text-sm text-white outline-none focus:border-blue-400"
+                        className="w-full rounded-lg border border-white/10 bg-[#131316] p-2.5 text-sm text-white outline-none focus:border-blue-400"
                       />
                     </div>
 
@@ -939,7 +939,7 @@ export default function TaskPlannerPage() {
                           })
                         }
                         placeholder="Detail instruksi dan deliverable yang diharapkan..."
-                        className="w-full rounded-lg border border-white/10 bg-[#151d32] p-2.5 text-sm text-white outline-none focus:border-blue-400"
+                        className="w-full rounded-lg border border-white/10 bg-[#131316] p-2.5 text-sm text-white outline-none focus:border-blue-400"
                       />
                     </div>
 
@@ -956,7 +956,7 @@ export default function TaskPlannerPage() {
                               assigned_agent_id: e.target.value,
                             })
                           }
-                          className="w-full rounded-lg border border-white/10 bg-[#151d32] p-2.5 text-sm text-white outline-none focus:border-blue-400"
+                          className="w-full rounded-lg border border-white/10 bg-[#131316] p-2.5 text-sm text-white outline-none focus:border-blue-400"
                         >
                           {agents.map((agent) => (
                             <option key={agent.id} value={String(agent.id)}>
@@ -978,7 +978,7 @@ export default function TaskPlannerPage() {
                               priority: e.target.value,
                             })
                           }
-                          className="w-full rounded-lg border border-white/10 bg-[#151d32] p-2.5 text-sm text-white outline-none focus:border-blue-400"
+                          className="w-full rounded-lg border border-white/10 bg-[#131316] p-2.5 text-sm text-white outline-none focus:border-blue-400"
                         >
                           <option value="Low">Low</option>
                           <option value="Normal">Normal</option>
@@ -1020,7 +1020,7 @@ export default function TaskPlannerPage() {
                     selectedPlan.items.map((task, index) => (
                       <div
                         key={task.id}
-                        className="rounded-xl border border-white/10 p-4 bg-[#101729]/60"
+                        className="rounded-xl border border-white/10 p-4 bg-[#131316]/60"
                       >
                         <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                           <div className="flex gap-3">
@@ -1125,14 +1125,14 @@ export default function TaskPlannerPage() {
         </div>
 
         {/* AGENT DIRECTORY */}
-        <section className="mt-6 bg-[#151d32] border border-white/10 rounded-2xl p-6">
+        <section className="mt-6 bg-[#131316] border border-white/10 rounded-2xl p-6">
           <h2 className="font-semibold mb-4">🤖 Available Specialist Agents</h2>
 
           <div className="flex flex-wrap gap-2">
             {agents.map((agent) => (
               <span
                 key={agent.id}
-                className="rounded-lg bg-[#0b1020] border border-white/10 px-3 py-2 text-xs text-slate-300"
+                className="rounded-lg bg-[#09090b] border border-white/10 px-3 py-2 text-xs text-slate-300"
               >
                 {agent.name}
               </span>

@@ -170,7 +170,7 @@ export default function ProjectsPage() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <form
             onSubmit={handleSubmit}
-            className="bg-[#151d32] border border-white/10 rounded-2xl p-6 h-fit"
+            className="bg-[#131316] border border-white/10 rounded-2xl p-6 h-fit"
           >
             <h3 className="font-semibold text-lg mb-6">
               {editingProjectId ? "Edit Project" : "＋ Create New Project"}
@@ -183,7 +183,7 @@ export default function ProjectsPage() {
               required
               maxLength={200}
               placeholder="Enter project name"
-              className="w-full mt-2 mb-4 rounded-lg bg-[#0b1020] border border-white/10 p-3 text-sm outline-none focus:border-blue-400"
+              className="w-full mt-2 mb-4 rounded-lg bg-[#09090b] border border-white/10 p-3 text-sm outline-none focus:border-blue-400"
             />
 
             <label className="text-sm text-slate-400">Description</label>
@@ -192,14 +192,14 @@ export default function ProjectsPage() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe your project..."
               rows={4}
-              className="w-full mt-2 mb-4 rounded-lg bg-[#0b1020] border border-white/10 p-3 text-sm outline-none focus:border-blue-400"
+              className="w-full mt-2 mb-4 rounded-lg bg-[#09090b] border border-white/10 p-3 text-sm outline-none focus:border-blue-400"
             />
 
             <label className="text-sm text-slate-400">Status</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full mt-2 mb-6 rounded-lg bg-[#0b1020] border border-white/10 p-3 text-sm"
+              className="w-full mt-2 mb-6 rounded-lg bg-[#09090b] border border-white/10 p-3 text-sm"
             >
               <option>Planning</option>
               <option>In Progress</option>
@@ -235,7 +235,7 @@ export default function ProjectsPage() {
             )}
           </form>
 
-          <div className="xl:col-span-2 bg-[#151d32] border border-white/10 rounded-2xl p-6">
+          <div className="xl:col-span-2 bg-[#131316] border border-white/10 rounded-2xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-semibold text-lg">Project Directory</h3>
               <span className="text-xs text-slate-400">

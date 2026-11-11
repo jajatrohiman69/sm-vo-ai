@@ -545,6 +545,40 @@ def calculate_engagement_score(
     return score, rate_str
 
 
+def _fb_post_impressions(post_id: str, token: str) -> int:
+    """Impresi asli postingan Facebook; 0 bila izin read_insights tidak tersedia."""
+    try:
+        url = (
+            f"https://graph.facebook.com/v21.0/{urllib.parse.quote(str(post_id))}/insights"
+            f"?metric=post_impressions&access_token={urllib.parse.quote(token)}"
+        )
+        res = _http_json("GET", url)
+        for m in res.get("data", []):
+            vals = m.get("values") or []
+            if vals:
+                return int(vals[0].get("value", 0) or 0)
+    except Exception:
+        pass
+    return 0
+
+
+def _ig_media_reach(media_id: str, token: str) -> int:
+    """Reach asli media Instagram; 0 bila insight tidak tersedia."""
+    try:
+        url = (
+            f"https://graph.facebook.com/v21.0/{urllib.parse.quote(str(media_id))}/insights"
+            f"?metric=reach&access_token={urllib.parse.quote(token)}"
+        )
+        res = _http_json("GET", url)
+        for m in res.get("data", []):
+            vals = m.get("values") or []
+            if vals:
+                return int(vals[0].get("value", 0) or 0)
+    except Exception:
+        pass
+    return 0
+
+
 def fetch_live_platform_metrics(
     platform: str,
     creds: dict[str, str],
@@ -583,7 +617,7 @@ def fetch_live_platform_metrics(
                     "external_post_id": str(row.get("id", "")),
                     "title_or_hook": msg.splitlines()[0][:120],
                     "content_snippet": msg,
-                    "views": (likes + comments + shares) * 12,
+                    "views": _fb_post_impressions(row.get("id", ""), token),
                     "likes": likes,
                     "comments": comments,
                     "shares": shares,
@@ -614,7 +648,7 @@ def fetch_live_platform_metrics(
                     "external_post_id": str(row.get("id", "")),
                     "title_or_hook": caption.splitlines()[0][:120],
                     "content_snippet": caption,
-                    "views": (likes + comments) * 15,
+                    "views": _ig_media_reach(row.get("id", ""), token),
                     "likes": likes,
                     "comments": comments,
                     "shares": 0,
@@ -629,25 +663,60 @@ def fetch_live_platform_metrics(
             return []
         url = (
             f"https://graph.threads.net/v1.0/{urllib.parse.quote(user_id)}/threads"
-            f"?fields=id,text,timestamp&limit=10&access_token={urllib.parse.quote(token)}"
+            f"?fields=id,text,timestamp,permalink&limit=25&access_token={urllib.parse.quote(token)}"
         )
         res = _http_json("GET", url)
+        insight_errors: list[str] = []
         for row in res.get("data", []):
             text = (row.get("text") or "").strip()
             if not text:
                 continue
+            media_id = str(row.get("id", ""))
+
+            # Metrik ASLI dari Threads Insights API (bukan angka karangan).
+            metrics_map: dict[str, int] = {}
+            try:
+                ins_url = (
+                    f"https://graph.threads.net/v1.0/{urllib.parse.quote(media_id)}/insights"
+                    f"?metric=views,likes,replies,reposts,quotes"
+                    f"&access_token={urllib.parse.quote(token)}"
+                )
+                ins = _http_json("GET", ins_url)
+                for m in ins.get("data", []):
+                    vals = m.get("values") or []
+                    if vals:
+                        metrics_map[str(m.get("name"))] = int(
+                            vals[0].get("value", 0) or 0
+                        )
+                    elif "total_value" in m:
+                        metrics_map[str(m.get("name"))] = int(
+                            m["total_value"].get("value", 0) or 0
+                        )
+            except Exception as exc:
+                insight_errors.append(str(exc))
+                continue
+
             items_out.append(
                 {
                     "platform": "threads",
-                    "external_post_id": str(row.get("id", "")),
+                    "external_post_id": media_id,
                     "title_or_hook": text.splitlines()[0][:120],
                     "content_snippet": text,
-                    "views": 100,
-                    "likes": 10,
-                    "comments": 3,
-                    "shares": 2,
+                    "views": metrics_map.get("views", 0),
+                    "likes": metrics_map.get("likes", 0),
+                    "comments": metrics_map.get("replies", 0),
+                    "shares": metrics_map.get("reposts", 0)
+                    + metrics_map.get("quotes", 0),
                     "saves": 0,
+                    "permalink": row.get("permalink") or "",
+                    "posted_at": row.get("timestamp") or "",
                 }
+            )
+
+        if not items_out and insight_errors:
+            raise RuntimeError(
+                "Threads Insights tidak bisa dibaca. Pastikan token memiliki izin "
+                "'threads_manage_insights'. Detail: " + insight_errors[0][:200]
             )
 
     return items_out

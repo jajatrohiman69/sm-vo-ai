@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { API_URL } from "@/lib/api";
+import VirtualOffice3D from "@/components/virtual-office-3d";
 
 type Agent = {
   id: number;
@@ -124,6 +125,7 @@ export default function Home() {
 
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState("");
+  const [viewMode, setViewMode] = useState<"office" | "classic">("office");
 
   const fetchDashboardData = useCallback(async (showSpinner = false) => {
     try {
@@ -357,6 +359,14 @@ export default function Home() {
     },
   ];
 
+  if (viewMode === "office") {
+    return (
+      <VirtualOffice3D
+        onOpenClassicDashboard={() => setViewMode("classic")}
+      />
+    );
+  }
+
   return (
     <section className="flex-1 min-w-0 p-6 md:p-10">
       {/* HEADER */}
@@ -377,13 +387,20 @@ export default function Home() {
         <div className="flex items-center gap-3">
           <button
             type="button"
+            onClick={() => setViewMode("office")}
+            className="rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-3 text-xs font-bold text-white shadow-lg transition"
+          >
+            🏢 Buka Virtual Office 3D
+          </button>
+          <button
+            type="button"
             onClick={() => void fetchDashboardData(true)}
-            className="rounded-xl border border-white/10 bg-[#151d32] px-4 py-3 text-xs font-medium text-slate-300 hover:bg-white/5 transition"
+            className="rounded-xl border border-white/10 bg-[#131316] px-4 py-3 text-xs font-medium text-slate-300 hover:bg-white/5 transition"
           >
             ↻ Refresh
           </button>
 
-          <div className="rounded-xl border border-white/10 bg-[#151d32] px-4 py-3 text-xs font-medium">
+          <div className="rounded-xl border border-white/10 bg-[#131316] px-4 py-3 text-xs font-medium">
             {backendStatus === "Checking..."
               ? "🟡"
               : backendStatus === "Online"
@@ -407,7 +424,7 @@ export default function Home() {
           <Link
             key={stat.label}
             href={stat.href}
-            className="bg-[#151d32] border border-white/10 hover:border-blue-400/40 rounded-2xl p-5 transition block"
+            className="bg-[#131316] border border-white/10 hover:border-blue-400/40 rounded-2xl p-5 transition block"
           >
             <div className="flex justify-between items-center">
               <p className="text-sm text-slate-400">{stat.label}</p>
@@ -424,7 +441,7 @@ export default function Home() {
       </div>
 
       {/* LIVE WORKSPACE */}
-      <section className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#151d32]">
+      <section className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#131316]">
         <div className="flex flex-col justify-between gap-3 border-b border-white/10 p-6 sm:flex-row sm:items-center">
           <div>
             <p className="text-xs font-semibold tracking-widest text-blue-300">
@@ -522,7 +539,7 @@ export default function Home() {
       {/* MAIN DASHBOARD GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* AI TEAM DIRECTORY */}
-        <div className="xl:col-span-2 bg-[#151d32] border border-white/10 rounded-2xl p-6">
+        <div className="xl:col-span-2 bg-[#131316] border border-white/10 rounded-2xl p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="font-semibold text-lg">AI Team Directory</h3>
@@ -552,7 +569,7 @@ export default function Home() {
               {agents.map((agent) => (
                 <div
                   key={agent.id}
-                  className="border border-white/10 rounded-xl p-4 hover:border-blue-400/40 transition bg-[#101729]/60"
+                  className="border border-white/10 rounded-xl p-4 hover:border-blue-400/40 transition bg-[#131316]/60"
                 >
                   <div className="flex justify-between items-center">
                     <span className="text-2xl">
@@ -588,7 +605,7 @@ export default function Home() {
         </div>
 
         {/* CEO COMMAND CENTER */}
-        <div className="bg-[#151d32] border border-white/10 rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-[#131316] border border-white/10 rounded-2xl p-6 flex flex-col justify-between">
           <div>
             <h3 className="font-semibold text-lg">CEO Command Center</h3>
 
@@ -660,7 +677,7 @@ export default function Home() {
               </div>
 
               {aiTestResult && (
-                <div className="mt-3 rounded-lg border border-white/10 bg-[#0b1020] p-3 text-xs text-slate-300">
+                <div className="mt-3 rounded-lg border border-white/10 bg-[#09090b] p-3 text-xs text-slate-300">
                   {aiTestResult}
                 </div>
               )}
@@ -671,7 +688,7 @@ export default function Home() {
             type="button"
             onClick={handleTestAi}
             disabled={testingAi}
-            className="mt-5 w-full rounded-xl border border-white/10 bg-[#0b1020] hover:bg-white/5 px-4 py-2.5 text-xs font-medium text-slate-300 disabled:opacity-50 transition"
+            className="mt-5 w-full rounded-xl border border-white/10 bg-[#09090b] hover:bg-white/5 px-4 py-2.5 text-xs font-medium text-slate-300 disabled:opacity-50 transition"
           >
             {testingAi ? "Menguji koneksi AI..." : "⚡ Test AI Connection"}
           </button>
@@ -681,7 +698,7 @@ export default function Home() {
       {/* PROJECTS, TASKS, AND LIVE ACTIVITY LOG */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
         {/* RECENT PROJECTS */}
-        <div className="bg-[#151d32] border border-white/10 rounded-2xl p-6">
+        <div className="bg-[#131316] border border-white/10 rounded-2xl p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-semibold text-lg">📁 Recent Projects</h3>
 
@@ -704,7 +721,7 @@ export default function Home() {
               {projects.slice(0, 5).map((project) => (
                 <div
                   key={project.id}
-                  className="border border-white/10 rounded-xl p-4 bg-[#101729]/50"
+                  className="border border-white/10 rounded-xl p-4 bg-[#131316]/50"
                 >
                   <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0">
@@ -732,7 +749,7 @@ export default function Home() {
         </div>
 
         {/* RECENT TASKS */}
-        <div className="bg-[#151d32] border border-white/10 rounded-2xl p-6">
+        <div className="bg-[#131316] border border-white/10 rounded-2xl p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-semibold text-lg">📋 Recent Tasks</h3>
 
@@ -755,7 +772,7 @@ export default function Home() {
               {tasks.slice(0, 5).map((task) => (
                 <div
                   key={task.id}
-                  className="border border-white/10 rounded-xl p-4 bg-[#101729]/50"
+                  className="border border-white/10 rounded-xl p-4 bg-[#131316]/50"
                 >
                   <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0">
@@ -787,7 +804,7 @@ export default function Home() {
         </div>
 
         {/* LIVE ACTIVITY LOGS */}
-        <div className="bg-[#151d32] border border-white/10 rounded-2xl p-6">
+        <div className="bg-[#131316] border border-white/10 rounded-2xl p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-semibold text-lg">⚡ Live Activity Log</h3>
             <span className="text-xs text-slate-500">
@@ -806,7 +823,7 @@ export default function Home() {
               {activityLogs.map((log) => (
                 <div
                   key={log.id}
-                  className="border border-white/10 rounded-xl p-3.5 bg-[#101729]/50"
+                  className="border border-white/10 rounded-xl p-3.5 bg-[#131316]/50"
                 >
                   <div className="flex justify-between items-start gap-2">
                     <span className="text-xs font-semibold text-blue-300">
@@ -829,7 +846,7 @@ export default function Home() {
       </div>
 
       {/* OMNICHANNEL SOCIAL HUB SUMMARY */}
-      <section className="mt-6 rounded-2xl border border-white/10 bg-[#151d32] p-6">
+      <section className="mt-6 rounded-2xl border border-white/10 bg-[#131316] p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -865,7 +882,7 @@ export default function Home() {
                 className={`rounded-xl border p-3 transition block ${
                   connected
                     ? "border-emerald-400/30 bg-emerald-500/10"
-                    : "border-white/10 bg-[#101729]/60 hover:border-blue-400/30"
+                    : "border-white/10 bg-[#131316]/60 hover:border-blue-400/30"
                 }`}
               >
                 <div className="flex items-center justify-between text-xs">

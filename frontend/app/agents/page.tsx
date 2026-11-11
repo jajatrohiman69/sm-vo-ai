@@ -182,7 +182,7 @@ export default function AgentsPage() {
         <div className="grid gap-6 xl:grid-cols-3">
           <form
             onSubmit={handleSubmit}
-            className="h-fit rounded-2xl border border-white/10 bg-[#151d32] p-6"
+            className="h-fit rounded-2xl border border-white/10 bg-[#131316] p-6"
           >
             <h2 className="mb-5 text-lg font-semibold">
               {editingId ? "Edit Agent" : "Add Agent"}
@@ -196,7 +196,7 @@ export default function AgentsPage() {
               maxLength={120}
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
-              className="mb-4 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+              className="mb-4 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm"
             />
             <label className="mb-1 block text-sm text-slate-400" htmlFor="agent-role">
               Role
@@ -207,7 +207,7 @@ export default function AgentsPage() {
               maxLength={120}
               value={form.role}
               onChange={(event) => setForm({ ...form, role: event.target.value })}
-              className="mb-4 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+              className="mb-4 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm"
             />
             <label className="mb-1 block text-sm text-slate-400" htmlFor="agent-department">
               Department
@@ -220,7 +220,7 @@ export default function AgentsPage() {
               onChange={(event) =>
                 setForm({ ...form, department: event.target.value })
               }
-              className="mb-4 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+              className="mb-4 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm"
             />
             <label className="mb-1 block text-sm text-slate-400" htmlFor="agent-status">
               Availability
@@ -229,7 +229,7 @@ export default function AgentsPage() {
               id="agent-status"
               value={form.status}
               onChange={(event) => setForm({ ...form, status: event.target.value })}
-              className="mb-4 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+              className="mb-4 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm"
             >
               <option>Standby</option>
               <option>Online</option>
@@ -246,7 +246,7 @@ export default function AgentsPage() {
               onChange={(event) =>
                 setForm({ ...form, description: event.target.value })
               }
-              className="mb-5 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+              className="mb-5 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm"
             />
             <button
               disabled={saving}
@@ -265,7 +265,7 @@ export default function AgentsPage() {
             )}
           </form>
 
-          <section className="xl:col-span-2 rounded-2xl border border-white/10 bg-[#151d32] p-6">
+          <section className="xl:col-span-2 rounded-2xl border border-white/10 bg-[#131316] p-6">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-lg font-semibold">AI Team</h2>
               <span className="text-xs text-slate-400">{agents.length} agents</span>

@@ -376,6 +376,8 @@ export default function SocialHubClient() {
     useState<PlatformKey | null>(null);
 
   // Generator Form State
+  const [selectedModel, setSelectedModel] = useState<string>("auto");
+  const [lastModelUsed, setLastModelUsed] = useState<string>("");
   const [topic, setTopic] = useState("");
   const [tone, setTone] = useState(
     "Profesional, edukatif, dan menarik untuk UMKM & pebisnis",
@@ -708,6 +710,7 @@ export default function SocialHubClient() {
           source_task_id: sourceTaskId ? Number(sourceTaskId) : null,
           project_id: projectId ? Number(projectId) : null,
           scheduled_at: genScheduleAt ? genScheduleAt.trim() : null,
+          model: selectedModel,
           save_as_draft: true,
         }),
       });
@@ -717,16 +720,17 @@ export default function SocialHubClient() {
         throw new Error(data?.detail || "AI gagal men-generate konten.");
       }
 
+      if (data?.model_used) setLastModelUsed(data.model_used);
       const createdPost = data.post as SocialPost;
       setPosts((prev) => [createdPost, ...prev]);
       selectPostForEditing(createdPost);
       if (createdPost.status === "Scheduled" && createdPost.scheduled_at) {
         setSuccessMessage(
-          `Konten "${createdPost.title}" berhasil dibuat & dijadwalkan tayang otomatis pada ${new Date(createdPost.scheduled_at).toLocaleString("id-ID")}!`,
+          `Konten "${createdPost.title}" berhasil dibuat (${data?.model_used || "AI"}) & dijadwalkan tayang otomatis pada ${new Date(createdPost.scheduled_at).toLocaleString("id-ID")}!`,
         );
       } else {
         setSuccessMessage(
-          `Draf konten "${createdPost.title}" berhasil dibuat untuk 5 platform!`,
+          `Draf konten "${createdPost.title}" berhasil dibuat untuk 5 platform (${data?.model_used || "AI"})!`,
         );
       }
     } catch (err) {
@@ -757,6 +761,7 @@ export default function SocialHubClient() {
           platforms: selectedPlatforms,
           tone: tone.trim(),
           project_id: projectId ? Number(projectId) : null,
+          model: selectedModel,
         }),
       });
 
@@ -765,13 +770,14 @@ export default function SocialHubClient() {
         throw new Error(data?.detail || "AI gagal menyusun kalender konten.");
       }
 
+      if (data?.model_used) setLastModelUsed(data.model_used);
       const createdList = (data.posts || []) as SocialPost[];
       if (createdList.length > 0) {
         setPosts((prev) => [...createdList, ...prev]);
         selectPostForEditing(createdList[0]);
       }
       setSuccessMessage(
-        `🗓️ Kalender Konten "${data.campaign_name}" (${createdList.length} hari) berhasil dibuat${
+        `🗓️ Kalender Konten "${data.campaign_name}" (${createdList.length} hari · ${data?.model_used || "AI"}) berhasil dibuat${
           calendarAutoSchedule ? " & dijadwalkan otomatis!" : "!"
         }`,
       );
@@ -808,6 +814,7 @@ export default function SocialHubClient() {
             platform: platformKey,
             instruction,
             current_content: currentText,
+            model: selectedModel,
           }),
         },
       );
@@ -816,12 +823,13 @@ export default function SocialHubClient() {
         throw new Error(data?.detail || "Gagal menyempurnakan konten.");
       }
 
+      if (data?.model_used) setLastModelUsed(data.model_used);
       const updated = data.post as SocialPost;
       selectPostForEditing(updated);
       setActiveTab(platformKey);
       setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       setSuccessMessage(
-        `✨ Konten ${platformKey.toUpperCase()} berhasil dipoles oleh AI!`,
+        `✨ Konten ${platformKey.toUpperCase()} berhasil dipoles oleh AI (${data?.model_used || "deepseek-v4.1-flash"})!`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memoles konten.");
@@ -872,6 +880,7 @@ export default function SocialHubClient() {
             platforms: selectedPlatforms,
             tone: tone.trim(),
             scheduled_at: genScheduleAt ? genScheduleAt.trim() : null,
+            model: selectedModel,
             save_as_draft: true,
           }),
         },
@@ -884,6 +893,7 @@ export default function SocialHubClient() {
         );
       }
 
+      if (data?.model_used) setLastModelUsed(data.model_used);
       if (data.pattern_analysis) {
         setPatternAnalysis(data.pattern_analysis as WinningPatternAnalysis);
       }
@@ -895,7 +905,7 @@ export default function SocialHubClient() {
       }
 
       setSuccessMessage(
-        "🔥 AI berhasil membedah histori engagement tertinggi & membuatkan paket copywriting baru yang serupa!",
+        `🔥 AI (${data?.model_used || "claude-opus-5-5"}) berhasil membedah histori engagement tertinggi & membuatkan paket copywriting baru yang serupa!`,
       );
     } catch (err) {
       setError(
@@ -1248,11 +1258,45 @@ export default function SocialHubClient() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* AI MODEL SELECTOR (5-MODEL SMART ROUTING) */}
+          <div className="flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs">
+            <span className="font-semibold text-amber-300">🧠 Model AI:</span>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-[#09090b] text-white font-semibold rounded-lg border border-amber-400/30 px-2.5 py-1 text-xs focus:outline-none focus:border-amber-400"
+              title="Smart Multi-Model otomatis memetakan 5 model OCTA sesuai tugas paling optimal"
+            >
+              <option value="auto">
+                ⚡ Smart Multi-Model (5 Model Optimal per Task)
+              </option>
+              <option value="claude-opus-5-5">
+                🏆 Claude Opus 5.5 (Viral Copywriting & Strategi)
+              </option>
+              <option value="claude-sonnet-5">
+                🚀 Claude Sonnet 5 (5 Sosmed & Utas Threads)
+              </option>
+              <option value="gemini-3.1-pro-preview">
+                🧠 Gemini 3.1 Pro (Kalender 7 Hari & Planner)
+              </option>
+              <option value="deepseek-v4.1-flash">
+                ⚡ DeepSeek v4.1 Flash (Magic Polish & Revisi Kilat)
+              </option>
+              <option value="gpt-5.4-nano">
+                🪶 GPT-5.4 Nano (Ultra Cepat & Ringan)
+              </option>
+            </select>
+            {lastModelUsed && (
+              <span className="rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                Aktif: {lastModelUsed}
+              </span>
+            )}
+          </div>
           <div className="rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-2.5 text-xs">
             <span className="text-purple-200">⏰ Terjadwal Otomatis: </span>
             <span className="font-bold text-white">{scheduledCount} Post</span>
           </div>
-          <div className="rounded-xl border border-white/10 bg-[#151d32] px-4 py-2.5 text-xs">
+          <div className="rounded-xl border border-white/10 bg-[#131316] px-4 py-2.5 text-xs">
             <span className="text-slate-400">Status Koneksi: </span>
             <span className="font-semibold text-emerald-300">
               {connectedCount} / 5 Platform Terhubung
@@ -1260,6 +1304,30 @@ export default function SocialHubClient() {
           </div>
         </div>
       </div>
+
+      {/* SMART MULTI-MODEL ROUTING BAR */}
+      {selectedModel === "auto" && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#131316]/90 px-4 py-2.5 text-[11px] text-slate-300">
+          <span className="font-bold text-amber-300">
+            ⚡ Smart Multi-Model Routing Aktif:
+          </span>
+          <span className="rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 py-0.5 text-amber-200">
+            🔥 Replikasi Engagement Viral → <b>claude-opus-5-5</b>
+          </span>
+          <span className="rounded-lg border border-blue-400/25 bg-blue-500/10 px-2 py-0.5 text-blue-200">
+            ✨ Konten 5 Sosmed & Utas → <b>claude-sonnet-5</b>
+          </span>
+          <span className="rounded-lg border border-purple-400/25 bg-purple-500/10 px-2 py-0.5 text-purple-200">
+            🗓️ Kalender 3–7 Hari → <b>gemini-3.1-pro-preview</b>
+          </span>
+          <span className="rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-emerald-200">
+            🪄 Magic Polish / Revisi → <b>deepseek-v4.1-flash</b>
+          </span>
+          <span className="rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-2 py-0.5 text-cyan-200">
+            🪶 Instant Backup → <b>gpt-5.4-nano</b>
+          </span>
+        </div>
+      )}
 
       {/* ALERTS */}
       {error && (
@@ -1312,7 +1380,7 @@ export default function SocialHubClient() {
                     ? "border-emerald-400/30 bg-emerald-500/5"
                     : isError
                       ? "border-red-400/30 bg-red-500/5"
-                      : "border-white/10 bg-[#151d32]"
+                      : "border-white/10 bg-[#131316]"
                 }`}
               >
                 <div>
@@ -1379,7 +1447,7 @@ export default function SocialHubClient() {
       </section>
 
       {/* AI ENGAGEMENT INTELLIGENCE & WINNING COPYWRITING ENGINE */}
-      <section className="mt-8 rounded-2xl border border-amber-400/25 bg-gradient-to-br from-[#161f36] to-[#11182b] p-6">
+      <section className="mt-8 rounded-2xl border border-amber-400/25 bg-gradient-to-br from-[#131316] to-[#131316] p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -1450,7 +1518,7 @@ export default function SocialHubClient() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div className="rounded-lg border border-white/10 bg-[#0b1020]/80 p-3">
+              <div className="rounded-lg border border-white/10 bg-[#09090b]/80 p-3">
                 <p className="font-semibold text-amber-300 mb-1">
                   🎣 Pola Hook Pemenang
                 </p>
@@ -1458,7 +1526,7 @@ export default function SocialHubClient() {
                   {patternAnalysis.hook_dna}
                 </p>
               </div>
-              <div className="rounded-lg border border-white/10 bg-[#0b1020]/80 p-3">
+              <div className="rounded-lg border border-white/10 bg-[#09090b]/80 p-3">
                 <p className="font-semibold text-blue-300 mb-1">
                   📐 Rumus Struktur Copywriting
                 </p>
@@ -1466,7 +1534,7 @@ export default function SocialHubClient() {
                   {patternAnalysis.copywriting_formula}
                 </p>
               </div>
-              <div className="rounded-lg border border-white/10 bg-[#0b1020]/80 p-3">
+              <div className="rounded-lg border border-white/10 bg-[#09090b]/80 p-3">
                 <p className="font-semibold text-emerald-300 mb-1">
                   💬 Pemicu Komentar & Share
                 </p>
@@ -1491,7 +1559,7 @@ export default function SocialHubClient() {
                         setTopic(idea);
                         void handleAnalyzeAndReplicateWinning(idea);
                       }}
-                      className="rounded-lg border border-amber-400/30 bg-[#0b1020] hover:bg-amber-500/20 px-3 py-1 text-[11px] text-amber-100 transition"
+                      className="rounded-lg border border-amber-400/30 bg-[#09090b] hover:bg-amber-500/20 px-3 py-1 text-[11px] text-amber-100 transition"
                     >
                       ✨ {idea}
                     </button>
@@ -1508,7 +1576,7 @@ export default function SocialHubClient() {
             return (
               <div
                 key={m.id}
-                className="rounded-xl border border-white/10 bg-[#0b1020]/90 p-4 flex flex-col justify-between hover:border-amber-400/30 transition"
+                className="rounded-xl border border-white/10 bg-[#09090b]/90 p-4 flex flex-col justify-between hover:border-amber-400/30 transition"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
@@ -1582,7 +1650,7 @@ export default function SocialHubClient() {
       {/* MODAL ADD WINNING POST / METRIC */}
       {showAddMetricModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-          <div className="w-full max-w-xl rounded-2xl border border-white/15 bg-[#11182b] p-6 shadow-2xl my-8">
+          <div className="w-full max-w-xl rounded-2xl border border-white/15 bg-[#131316] p-6 shadow-2xl my-8">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-base font-bold text-white">
                 ➕ Tambah Histori Postingan Engagement Tinggi (Winning Post)
@@ -1610,7 +1678,7 @@ export default function SocialHubClient() {
                         platform: e.target.value as PlatformKey,
                       }))
                     }
-                    className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-2 text-xs text-white"
+                    className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3 py-2 text-xs text-white"
                   >
                     {PLATFORMS.map((p) => (
                       <option key={p.key} value={p.key}>
@@ -1641,7 +1709,7 @@ export default function SocialHubClient() {
                         }));
                       }
                     }}
-                    className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-2 text-xs text-white"
+                    className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3 py-2 text-xs text-white"
                   >
                     <option value="">-- Ketik Manual / Pilih Post --</option>
                     {posts.map((p) => (
@@ -1668,7 +1736,7 @@ export default function SocialHubClient() {
                     }))
                   }
                   placeholder="Contoh: 90% pemilik UMKM merasa omzetnya naik, tapi saldo jalan di tempat..."
-                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3.5 py-2 text-xs text-white"
+                  className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3.5 py-2 text-xs text-white"
                 />
               </div>
 
@@ -1687,7 +1755,7 @@ export default function SocialHubClient() {
                     }))
                   }
                   placeholder="Tempelkan teks postingan atau utas terbaik Anda di sini..."
-                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] p-3 text-xs text-white"
+                  className="w-full rounded-xl border border-white/10 bg-[#09090b] p-3 text-xs text-white"
                 />
               </div>
 
@@ -1713,7 +1781,7 @@ export default function SocialHubClient() {
                           [f.k]: e.target.value,
                         }))
                       }
-                      className="w-full rounded-lg border border-white/10 bg-[#0b1020] px-2.5 py-1.5 text-xs text-white"
+                      className="w-full rounded-lg border border-white/10 bg-[#09090b] px-2.5 py-1.5 text-xs text-white"
                     />
                   </div>
                 ))}
@@ -1733,7 +1801,7 @@ export default function SocialHubClient() {
                     }))
                   }
                   placeholder="Contoh: Pakai angka spesifik + pertanyaan pilihan 1/2/3 di akhir"
-                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3.5 py-2 text-xs text-white"
+                  className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3.5 py-2 text-xs text-white"
                 />
               </div>
 
@@ -1760,7 +1828,7 @@ export default function SocialHubClient() {
       {/* MODAL SETUP PER PLATFORM */}
       {setupPlatform && activeSetupMeta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl rounded-2xl border border-white/15 bg-[#11182b] p-6 shadow-2xl my-8">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/15 bg-[#131316] p-6 shadow-2xl my-8">
             <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -1814,7 +1882,7 @@ export default function SocialHubClient() {
                       }))
                     }
                     placeholder={field.placeholder}
-                    className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-4 py-2.5 text-sm text-white focus:border-blue-400 focus:outline-none"
+                    className="w-full rounded-xl border border-white/10 bg-[#09090b] px-4 py-2.5 text-sm text-white focus:border-blue-400 focus:outline-none"
                   />
                   {field.helper && (
                     <p className="text-[11px] text-slate-400 mt-1">
@@ -1862,7 +1930,7 @@ export default function SocialHubClient() {
         {/* LEFT COLUMN: AI GENERATOR + QUEUE LIST (5 COLS) */}
         <div className="xl:col-span-5 space-y-6">
           {/* AI OMNICHANNEL GENERATOR */}
-          <div className="rounded-2xl border border-white/10 bg-[#151d32] p-6">
+          <div className="rounded-2xl border border-white/10 bg-[#131316] p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-lg font-bold text-white">
@@ -1874,7 +1942,7 @@ export default function SocialHubClient() {
                 </p>
               </div>
 
-              <div className="flex rounded-xl border border-white/10 bg-[#0b1020] p-1 text-xs">
+              <div className="flex rounded-xl border border-white/10 bg-[#09090b] p-1 text-xs">
                 <button
                   type="button"
                   onClick={() => setStudioMode("single")}
@@ -1923,13 +1991,13 @@ export default function SocialHubClient() {
                       ? "Contoh: Kampanye edukasi transformasi pembukuan UMKM dari Excel manual ke Dashboard Otomatis Solusi Macro..."
                       : "Contoh: Buatkan konten edukasi 5 tanda keuangan UMKM bocor karena rekap manual, dan jadwalkan tayang besok pagi jam 09:00..."
                   }
-                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] p-3.5 text-sm text-white focus:border-blue-400 focus:outline-none"
+                  className="w-full rounded-xl border border-white/10 bg-[#09090b] p-3.5 text-sm text-white focus:border-blue-400 focus:outline-none"
                   required
                 />
               </div>
 
               {studioMode === "calendar" && (
-                <div className="rounded-xl border border-purple-400/25 bg-[#0b1020] p-3.5 space-y-3">
+                <div className="rounded-xl border border-purple-400/25 bg-[#09090b] p-3.5 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-purple-200">
                       🗓️ Pengaturan Kalender Kampanye Otomatis
@@ -1957,7 +2025,7 @@ export default function SocialHubClient() {
                         onChange={(e) =>
                           setCalendarDays(Number(e.target.value))
                         }
-                        className="w-full rounded-lg border border-white/10 bg-[#151d32] px-2.5 py-2 text-xs text-white"
+                        className="w-full rounded-lg border border-white/10 bg-[#131316] px-2.5 py-2 text-xs text-white"
                       >
                         <option value={3}>3 Hari</option>
                         <option value={5}>5 Hari</option>
@@ -1973,7 +2041,7 @@ export default function SocialHubClient() {
                         type="date"
                         value={calendarStartDate}
                         onChange={(e) => setCalendarStartDate(e.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-[#151d32] px-2.5 py-2 text-xs text-white"
+                        className="w-full rounded-lg border border-white/10 bg-[#131316] px-2.5 py-2 text-xs text-white"
                       />
                     </div>
 
@@ -1985,7 +2053,7 @@ export default function SocialHubClient() {
                         type="time"
                         value={calendarPostTime}
                         onChange={(e) => setCalendarPostTime(e.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-[#151d32] px-2.5 py-2 text-xs text-white"
+                        className="w-full rounded-lg border border-white/10 bg-[#131316] px-2.5 py-2 text-xs text-white"
                       />
                     </div>
                   </div>
@@ -2012,7 +2080,7 @@ export default function SocialHubClient() {
                         }
                       }
                     }}
-                    className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-2.5 text-xs text-white"
+                    className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3 py-2.5 text-xs text-white"
                   >
                     <option value="">-- Tanpa Task Spesifik --</option>
                     {tasks.map((t) => (
@@ -2030,7 +2098,7 @@ export default function SocialHubClient() {
                   <select
                     value={projectId}
                     onChange={(e) => setProjectId(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-2.5 text-xs text-white"
+                    className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3 py-2.5 text-xs text-white"
                   >
                     <option value="">-- Pilih Project --</option>
                     {projects.map((p) => (
@@ -2043,7 +2111,7 @@ export default function SocialHubClient() {
               </div>
 
               {/* SCHEDULE PRESETS IN GENERATOR */}
-              <div className="rounded-xl border border-purple-400/20 bg-[#0b1020] p-3.5 space-y-2.5">
+              <div className="rounded-xl border border-purple-400/20 bg-[#09090b] p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-purple-200">
                     ⏰ Jadwalkan Tayang Otomatis Saat Selesai Generate
@@ -2064,7 +2132,7 @@ export default function SocialHubClient() {
                   type="datetime-local"
                   value={genScheduleAt}
                   onChange={(e) => setGenScheduleAt(e.target.value)}
-                  className="w-full rounded-lg border border-white/10 bg-[#151d32] px-3 py-2 text-xs text-white"
+                  className="w-full rounded-lg border border-white/10 bg-[#131316] px-3 py-2 text-xs text-white"
                 />
 
                 <div className="flex flex-wrap gap-1.5">
@@ -2115,7 +2183,7 @@ export default function SocialHubClient() {
                   type="text"
                   value={tone}
                   onChange={(e) => setTone(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3.5 py-2 text-xs text-white"
+                  className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3.5 py-2 text-xs text-white"
                 />
               </div>
 
@@ -2134,7 +2202,7 @@ export default function SocialHubClient() {
                         className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition flex items-center gap-1.5 ${
                           checked
                             ? p.activeClass
-                            : "border-white/10 bg-[#0b1020] text-slate-400 hover:text-white"
+                            : "border-white/10 bg-[#09090b] text-slate-400 hover:text-white"
                         }`}
                       >
                         <span>{p.icon}</span>
@@ -2168,7 +2236,7 @@ export default function SocialHubClient() {
           </div>
 
           {/* SAVED SOCIAL POSTS / QUEUE */}
-          <div className="rounded-2xl border border-white/10 bg-[#151d32] p-6">
+          <div className="rounded-2xl border border-white/10 bg-[#131316] p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
               <h2 className="text-base font-bold text-white">
                 🗂️ Antrean Jadwal & Riwayat Konten ({posts.length})
@@ -2222,7 +2290,7 @@ export default function SocialHubClient() {
                       className={`cursor-pointer rounded-xl border p-4 transition ${
                         isSelected
                           ? "border-blue-400/50 bg-blue-500/15"
-                          : "border-white/10 bg-[#0f172a] hover:bg-white/5"
+                          : "border-white/10 bg-[#131316] hover:bg-white/5"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -2312,7 +2380,7 @@ export default function SocialHubClient() {
         {/* RIGHT COLUMN: MULTI-PLATFORM EDITOR, THREAD BUILDER & SCHEDULER (7 COLS) */}
         <div className="xl:col-span-7">
           {!activePost ? (
-            <div className="rounded-2xl border border-white/10 bg-[#151d32] p-12 text-center h-full flex flex-col items-center justify-center">
+            <div className="rounded-2xl border border-white/10 bg-[#131316] p-12 text-center h-full flex flex-col items-center justify-center">
               <div className="text-4xl mb-3">📡</div>
               <h3 className="text-lg font-bold text-white">
                 Pilih atau Generate Konten Sosial Media
@@ -2324,7 +2392,7 @@ export default function SocialHubClient() {
               </p>
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-[#151d32] p-6 space-y-5">
+            <div className="rounded-2xl border border-white/10 bg-[#131316] p-6 space-y-5">
               {/* TOP BAR: TITLE + SAVE / PUBLISH BUTTONS */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-white/10 pb-4">
                 <div className="flex-1">
@@ -2348,7 +2416,7 @@ export default function SocialHubClient() {
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3.5 py-2 text-base font-bold text-white focus:border-blue-400 focus:outline-none"
+                    className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#09090b] px-3.5 py-2 text-base font-bold text-white focus:border-blue-400 focus:outline-none"
                   />
                 </div>
 
@@ -2376,7 +2444,7 @@ export default function SocialHubClient() {
               </div>
 
               {/* MEDIA URL & AUTO-SCHEDULER CONTROL BAR */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 rounded-xl border border-white/10 bg-[#0f172a] p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 rounded-xl border border-white/10 bg-[#131316] p-4">
                 <div className="lg:col-span-5">
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     🖼️ URL Media Publik (.jpg / .png / .mp4)
@@ -2386,7 +2454,7 @@ export default function SocialHubClient() {
                     value={editMediaUrl}
                     onChange={(e) => setEditMediaUrl(e.target.value)}
                     placeholder="https://domain.com/media.jpg (Wajib untuk IG/TikTok)"
-                    className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-2 text-xs text-white"
+                    className="w-full rounded-xl border border-white/10 bg-[#09090b] px-3 py-2 text-xs text-white"
                   />
                 </div>
 
@@ -2422,7 +2490,7 @@ export default function SocialHubClient() {
                       type="datetime-local"
                       value={editScheduledAt}
                       onChange={(e) => setEditScheduledAt(e.target.value)}
-                      className="flex-1 min-w-[180px] rounded-xl border border-white/10 bg-[#0b1020] px-3 py-2 text-xs text-white"
+                      className="flex-1 min-w-[180px] rounded-xl border border-white/10 bg-[#09090b] px-3 py-2 text-xs text-white"
                     />
                     <button
                       type="button"
@@ -2469,7 +2537,7 @@ export default function SocialHubClient() {
                       className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition flex items-center gap-2 ${
                         isTabActive
                           ? p.activeClass
-                          : "border-white/10 bg-[#0b1020] text-slate-400 hover:text-white"
+                          : "border-white/10 bg-[#09090b] text-slate-400 hover:text-white"
                       }`}
                     >
                       <span>{p.icon}</span>
@@ -2529,7 +2597,7 @@ export default function SocialHubClient() {
                       onClick={() =>
                         handleRefinePlatform(activeTab, preset.prompt)
                       }
-                      className="rounded-lg border border-indigo-400/30 bg-[#0b1020]/70 hover:bg-indigo-500/25 px-2.5 py-1 text-[11px] font-medium text-indigo-100 transition disabled:opacity-50"
+                      className="rounded-lg border border-indigo-400/30 bg-[#09090b]/70 hover:bg-indigo-500/25 px-2.5 py-1 text-[11px] font-medium text-indigo-100 transition disabled:opacity-50"
                     >
                       {preset.label}
                     </button>
@@ -2613,7 +2681,7 @@ export default function SocialHubClient() {
                               }));
                               setThreadItems(parseThreadsToItems(val));
                             }}
-                            className="w-full rounded-xl border border-white/10 bg-[#0b1020] p-4 text-sm text-slate-100 leading-relaxed focus:border-purple-400 focus:outline-none"
+                            className="w-full rounded-xl border border-white/10 bg-[#09090b] p-4 text-sm text-slate-100 leading-relaxed focus:border-purple-400 focus:outline-none"
                           />
                         </div>
                       ) : (
@@ -2641,7 +2709,7 @@ export default function SocialHubClient() {
 
                                 {/* UTAS CARD */}
                                 <div className="flex-1 pb-4">
-                                  <div className="rounded-2xl border border-white/10 bg-[#0b1020] p-4 hover:border-purple-400/30 transition">
+                                  <div className="rounded-2xl border border-white/10 bg-[#09090b] p-4 hover:border-purple-400/30 transition">
                                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
                                       <div className="flex items-center gap-2">
                                         <span className="text-xs font-bold text-white">
@@ -2744,7 +2812,7 @@ export default function SocialHubClient() {
                                         updateThreadItemsList(next);
                                       }}
                                       placeholder={`Tulis isi Utas #${idx + 1} di sini...`}
-                                      className="w-full rounded-xl border border-white/10 bg-[#131b30] p-3.5 text-sm text-slate-100 leading-relaxed focus:border-purple-400 focus:outline-none"
+                                      className="w-full rounded-xl border border-white/10 bg-[#131316] p-3.5 text-sm text-slate-100 leading-relaxed focus:border-purple-400 focus:outline-none"
                                     />
                                   </div>
                                 </div>
@@ -2824,7 +2892,7 @@ export default function SocialHubClient() {
                         }))
                       }
                       placeholder={`Tulis atau edit konten khusus untuk ${p.label}...`}
-                      className="w-full rounded-xl border border-white/10 bg-[#0b1020] p-4 text-sm text-slate-100 leading-relaxed font-sans focus:border-blue-400 focus:outline-none"
+                      className="w-full rounded-xl border border-white/10 bg-[#09090b] p-4 text-sm text-slate-100 leading-relaxed font-sans focus:border-blue-400 focus:outline-none"
                     />
                   </div>
                 );
@@ -2832,7 +2900,7 @@ export default function SocialHubClient() {
 
               {/* PER-PLATFORM DIRECT PUBLISH REPORT */}
               {activePost.gas_response && (
-                <div className="rounded-xl border border-white/10 bg-[#0b1020] p-4">
+                <div className="rounded-xl border border-white/10 bg-[#09090b] p-4">
                   <p className="text-xs font-semibold text-slate-300 mb-2">
                     📡 Status Hasil Publish Langsung per Platform:
                   </p>

@@ -19,48 +19,93 @@ OCTA_MODEL = os.getenv(
 AVAILABLE_MODELS = [
     {
         "id": "auto",
-        "label": "⚡ Hybrid Smart (Opus 5.5 + Sonnet 5)",
-        "description": "Otomatis memakai Claude Opus 5.5 untuk Viral Copywriting/Strategi & Claude Sonnet 5 untuk tugas cepat/massal.",
+        "label": "⚡ Smart Multi-Model (Optimal per Task)",
+        "description": "Otomatis memilih model terbaik dari 5 model OCTA sesuai jenis tugas (Opus 5.5, Sonnet 5, Gemini 3.1 Pro, DeepSeek v4.1 Flash, GPT-5.4 Nano).",
     },
     {
         "id": "claude-opus-5-5",
-        "label": "🏆 Claude Opus 5.5 (Flagship Copywriting & Strategi)",
-        "description": "Kualitas bahasa Indonesia paling luwes, tajam untuk Hook viral, Threads, dan analisis mendalam.",
+        "label": "🏆 Claude Opus 5.5 (Flagship Viral Copy & AI CEO)",
+        "description": "Terbaik untuk Bedah DNA Engagement Viral, Copywriting Emosional, dan Strategi Eksekutif AI CEO.",
     },
     {
         "id": "claude-sonnet-5",
-        "label": "🚀 Claude Sonnet 5 (Cepat & Presisi)",
-        "description": "Seimbang dan cepat untuk generate 5 platform sekaligus & kalender konten 7 hari.",
+        "label": "🚀 Claude Sonnet 5 (Omnichannel & Specialist Agent)",
+        "description": "Cepat & natural untuk Generate Konten 5 Platform, Utas Threads, dan analisis bisnis.",
     },
     {
-        "id": "seed-2-0-mini-260428",
-        "label": "🪶 Seed 2.0 Mini (Ultra Cepat)",
-        "description": "Model ringan untuk draf cepat sederhana.",
+        "id": "gemini-3.1-pro-preview",
+        "label": "🧠 Gemini 3.1 Pro (Kalender Kampanye & Task Planner)",
+        "description": "Unggul untuk perencanaan terstruktur: Kalender Konten 3-7 Hari, Project Task Planner, dan Dashboard.",
+    },
+    {
+        "id": "deepseek-v4.1-flash",
+        "label": "⚡ DeepSeek v4.1 Flash (Magic Polish, Excel & Otomasi)",
+        "description": "Sangat cepat & tajam untuk Revisi/Polish Copywriting, Utas Threads, Formula Excel, dan Kode Otomasi.",
+    },
+    {
+        "id": "gpt-5.4-nano",
+        "label": "🪶 GPT-5.4 Nano (Ultra Cepat & Ringan)",
+        "description": "Respons instan tanpa jeda untuk draf singkat, instruksi cepat, dan backup failover.",
     },
 ]
 
 VALID_MODEL_IDS = {
     "claude-opus-5-5",
     "claude-sonnet-5",
-    "seed-2-0-mini-260428",
+    "gemini-3.1-pro-preview",
+    "deepseek-v4.1-flash",
+    "gpt-5.4-nano",
+}
+
+TASK_OPTIMAL_MODEL_MAP = {
+    # 1. Claude Opus 5.5 -> Strategi level CEO & Replikasi Copywriting Viral berbasis histori engagement
+    "winning_copy": "claude-opus-5-5",
+    "ceo_chat": "claude-opus-5-5",
+    # 2. Claude Sonnet 5 -> Pembuatan paket konten 5 sosmed sekaligus & diskusi agent bisnis/kreatif
+    "social_post": "claude-sonnet-5",
+    "agent_chat": "claude-sonnet-5",
+    "agent_exec": "claude-sonnet-5",
+    # 3. Gemini 3.1 Pro -> Perencanaan JSON terstruktur skala besar (Kalender 7 hari & Task Planner)
+    "calendar": "gemini-3.1-pro-preview",
+    "planner": "gemini-3.1-pro-preview",
+    "agent_dashboard": "gemini-3.1-pro-preview",
+    # 4. DeepSeek v4.1 Flash -> Revisi/polish kilat per-platform & eksekusi teknis (Excel / Automation)
+    "refine": "deepseek-v4.1-flash",
+    "agent_technical": "deepseek-v4.1-flash",
+    # 5. GPT-5.4 Nano -> Draf kilat / tugas ringan instan
+    "quick_draft": "gpt-5.4-nano",
 }
 
 
 def resolve_ai_model(
     requested_model: str | None = None,
     task_type: str = "general",
+    agent_role_or_name: str = "",
 ) -> str:
     """
-    Menentukan model AI terbaik secara Hybrid Smart atau sesuai pilihan Founder.
-    - winning_copy, refine, ceo_chat -> claude-opus-5-5 (kualitas copywriting & strategi tertinggi)
-    - social_post, calendar, planner, agent_exec -> claude-sonnet-5 (cepat, terstruktur, anti-timeout)
+    Menentukan model AI paling optimal berdasarkan jenis task dan spesialisasi agent:
+    - Jika Founder memilih model spesifik di UI, gunakan model tersebut.
+    - Jika mode 'auto' (Smart Multi-Model), arahkan ke model paling optimal untuk task_type.
     """
     if requested_model and requested_model.strip() in VALID_MODEL_IDS:
         return requested_model.strip()
 
-    if task_type in {"winning_copy", "refine", "ceo_chat"}:
-        return "claude-opus-5-5"
-    return "claude-sonnet-5"
+    # Pemilihan spesifik berdasarkan spesialisasi Agent (untuk eksekusi task atau chat agent)
+    role_lower = (agent_role_or_name or "").strip().lower()
+    if role_lower:
+        if "ai ceo" in role_lower or role_lower == "ceo":
+            return "claude-opus-5-5"
+        if any(
+            k in role_lower
+            for k in ("excel", "spreadsheet", "automation", "otomasi", "engineer", "macro")
+        ):
+            return "deepseek-v4.1-flash"
+        if any(k in role_lower for k in ("dashboard", "reporting", "data", "kpi")):
+            return "gemini-3.1-pro-preview"
+        if any(k in role_lower for k in ("quick", "nano", "ringkas")):
+            return "gpt-5.4-nano"
+
+    return TASK_OPTIMAL_MODEL_MAP.get(task_type, "claude-sonnet-5")
 
 
 # ============================================================
@@ -82,7 +127,7 @@ def get_value(data, key, default=None):
 
 
 # ============================================================
-# AI CLIENT
+# AI CLIENT & SMART COMPLETION WITH FAILOVER
 # ============================================================
 
 def get_ai_client():
@@ -93,12 +138,57 @@ def get_ai_client():
 
     return OpenAI(
         api_key=OCTA_API_KEY,
-        base_url=OCTA_BASE_URL
+        base_url=OCTA_BASE_URL,
+        timeout=95.0,
     )
 
 
+def _chat_completion_with_fallback(
+    model: str,
+    messages: list[dict],
+    max_tokens: int = 3000,
+    temperature: float = 0.5,
+) -> tuple[str, str]:
+    """
+    Menjalankan chat completion pada model utama yang dipilih.
+    Jika model menggunakan reasoning token internal (seperti gemini-3.1-pro-preview),
+    alokasikan batas token yang memadai. Jika terjadi gangguan jaringan/timeout pada model utama,
+    otomatis failover ke claude-sonnet-5 lalu gpt-5.4-nano.
+    """
+    client = get_ai_client()
+    fallback_chain = [model]
+    for fb in ("claude-sonnet-5", "deepseek-v4.1-flash", "gpt-5.4-nano"):
+        if fb not in fallback_chain:
+            fallback_chain.append(fb)
+
+    last_error = None
+    for candidate_model in fallback_chain:
+        effective_max_tokens = (
+            max(max_tokens, 5000)
+            if candidate_model == "gemini-3.1-pro-preview"
+            else max_tokens
+        )
+        try:
+            response = client.chat.completions.create(
+                model=candidate_model,
+                messages=messages,
+                max_tokens=effective_max_tokens,
+                temperature=temperature,
+            )
+            content = (response.choices[0].message.content or "").strip()
+            if content:
+                return content, candidate_model
+        except Exception as exc:
+            last_error = exc
+            continue
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("Tidak ada output dari model AI.")
+
+
 # ============================================================
-# AI CEO CHAT
+# AI CEO & SPECIALIST AGENT CHAT
 # ============================================================
 
 def ask_claude(
@@ -106,10 +196,14 @@ def ask_claude(
     system_prompt: str | None = None,
     history: list[dict] | None = None,
     model: str | None = None,
+    agent_name: str = "AI CEO",
 ) -> str:
-
-    client = get_ai_client()
-    chosen_model = resolve_ai_model(model, task_type="ceo_chat")
+    is_ceo = not agent_name or agent_name.strip().upper() == "AI CEO"
+    chosen_model = resolve_ai_model(
+        model,
+        task_type="ceo_chat" if is_ceo else "agent_chat",
+        agent_role_or_name=agent_name,
+    )
 
     messages = [
         {
@@ -139,18 +233,17 @@ def ask_claude(
         "content": message
     })
 
-    response = client.chat.completions.create(
+    content, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=messages,
-        max_tokens=2000,
-        temperature=0.7
+        max_tokens=2500,
+        temperature=0.65,
     )
-
-    return response.choices[0].message.content or ""
+    return content
 
 
 # ============================================================
-# AI CEO TASK PLANNER
+# AI CEO TASK PLANNER (OPTIMAL: GEMINI 3.1 PRO)
 # ============================================================
 
 def generate_task_plan(
@@ -160,8 +253,6 @@ def generate_task_plan(
     instruction: str,
     model: str | None = None,
 ) -> str:
-
-    client = get_ai_client()
     chosen_model = resolve_ai_model(model, task_type="planner")
 
     planner_system_prompt = """
@@ -210,7 +301,7 @@ FORMAT:
         "founder_instruction": instruction
     }
 
-    response = client.chat.completions.create(
+    content, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=[
             {
@@ -222,15 +313,14 @@ FORMAT:
                 "content": str(payload)
             }
         ],
-        max_tokens=3500,
-        temperature=0.2
+        max_tokens=4000,
+        temperature=0.2,
     )
-
-    return response.choices[0].message.content or ""
+    return content
 
 
 # ============================================================
-# AI AGENT TASK EXECUTOR
+# AI AGENT TASK EXECUTOR (OPTIMAL BY SPECIALIST ROLE)
 # ============================================================
 
 def execute_agent_task(
@@ -239,11 +329,8 @@ def execute_agent_task(
     task,
     prior_results=None,
     model: str | None = None,
+    extra_context: str = "",
 ) -> str:
-
-    client = get_ai_client()
-    chosen_model = resolve_ai_model(model, task_type="agent_exec")
-
     # Membaca data Agent, Project, dan Task.
     # Bisa berupa dictionary atau SQLAlchemy object.
 
@@ -269,6 +356,12 @@ def execute_agent_task(
         agent,
         "description",
         ""
+    )
+
+    chosen_model = resolve_ai_model(
+        model,
+        task_type="agent_exec",
+        agent_role_or_name=f"{agent_name} {agent_role} {agent_department}",
     )
 
     project_name = get_value(
@@ -370,13 +463,15 @@ PRIORITAS:
 HASIL PEKERJAAN AGENT SEBELUMNYA:
 {prior_results}
 
+{extra_context}
+
 INSTRUKSI:
 Kerjakan task ini sekarang sesuai jabatan dan tanggung jawabmu.
 
 Berikan hasil pekerjaan yang lengkap, konkret, dan bisa ditinjau Founder.
 """
 
-    response = client.chat.completions.create(
+    result, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=[
             {
@@ -389,10 +484,8 @@ Berikan hasil pekerjaan yang lengkap, konkret, dan bisa ditinjau Founder.
             }
         ],
         max_tokens=3500,
-        temperature=0.3
+        temperature=0.3,
     )
-
-    result = response.choices[0].message.content
 
     if not result:
         raise RuntimeError(
@@ -403,7 +496,7 @@ Berikan hasil pekerjaan yang lengkap, konkret, dan bisa ditinjau Founder.
 
 
 # ============================================================
-# AI OMNICHANNEL SOCIAL CONTENT GENERATOR
+# AI OMNICHANNEL SOCIAL CONTENT GENERATOR (OPTIMAL: SONNET 5)
 # ============================================================
 
 def generate_social_content(
@@ -414,7 +507,6 @@ def generate_social_content(
     winning_posts_context: str = "",
     model: str | None = None,
 ) -> str:
-    client = get_ai_client()
     chosen_model = resolve_ai_model(model, task_type="social_post")
 
     system_prompt = """
@@ -463,18 +555,21 @@ FORMAT JSON:
         "winning_high_engagement_posts_to_emulate": winning_posts_context,
     }
 
-    response = client.chat.completions.create(
+    content, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": str(user_payload)},
         ],
-        max_tokens=2800,
+        max_tokens=3000,
         temperature=0.5,
     )
+    return content
 
-    return response.choices[0].message.content or ""
 
+# ============================================================
+# MULTI-DAY SOCIAL CALENDAR (OPTIMAL: GEMINI 3.1 PRO)
+# ============================================================
 
 def generate_social_calendar(
     campaign_theme: str,
@@ -485,7 +580,6 @@ def generate_social_calendar(
     source_context: str = "",
     model: str | None = None,
 ) -> str:
-    client = get_ai_client()
     chosen_model = resolve_ai_model(model, task_type="calendar")
     safe_days = max(1, min(7, int(days)))
 
@@ -539,18 +633,21 @@ FORMAT JSON:
         "winning_high_engagement_posts_to_emulate": winning_posts_context,
     }
 
-    response = client.chat.completions.create(
+    content, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": str(user_payload)},
         ],
-        max_tokens=4000,
+        max_tokens=4500,
         temperature=0.45,
     )
+    return content
 
-    return response.choices[0].message.content or ""
 
+# ============================================================
+# AI MAGIC POLISH / REFINE (OPTIMAL: DEEPSEEK V4.1 FLASH)
+# ============================================================
 
 def refine_social_platform_content(
     platform: str,
@@ -558,7 +655,6 @@ def refine_social_platform_content(
     instruction: str,
     model: str | None = None,
 ) -> str:
-    client = get_ai_client()
     chosen_model = resolve_ai_model(model, task_type="refine")
 
     is_threads = platform.strip().lower() == "threads"
@@ -577,7 +673,7 @@ KONTEN SAAT INI ({platform.upper()}):
 {current_content}
 """
 
-    response = client.chat.completions.create(
+    content, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -586,8 +682,12 @@ KONTEN SAAT INI ({platform.upper()}):
         max_tokens=2000,
         temperature=0.4,
     )
-    return (response.choices[0].message.content or "").strip()
+    return content.strip()
 
+
+# ============================================================
+# WINNING ENGAGEMENT DNA & VIRAL REPLICATION (OPTIMAL: OPUS 5.5)
+# ============================================================
 
 def analyze_and_replicate_winning_posts(
     winning_posts: list[dict],
@@ -596,7 +696,6 @@ def analyze_and_replicate_winning_posts(
     tone: str = "Tajam, relevan, memancing diskusi tinggi & shareable",
     model: str | None = None,
 ) -> str:
-    client = get_ai_client()
     chosen_model = resolve_ai_model(model, task_type="winning_copy")
     target_platforms = platforms or [
         "facebook",
@@ -656,7 +755,7 @@ FORMAT JSON:
         "tone": tone,
     }
 
-    response = client.chat.completions.create(
+    content, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -665,5 +764,4 @@ FORMAT JSON:
         max_tokens=2800,
         temperature=0.45,
     )
-
-    return response.choices[0].message.content or ""
+    return content

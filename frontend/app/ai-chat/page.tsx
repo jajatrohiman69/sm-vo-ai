@@ -101,6 +101,7 @@ export default function AICEOChatPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState<string>("auto");
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadedSessionId, setLoadedSessionId] = useState<string>("");
@@ -206,6 +207,7 @@ export default function AICEOChatPage() {
           session_id: sessionId,
           agent_id: activeAgent ? activeAgent.id : null,
           project_id: selectedProjectId ? Number(selectedProjectId) : null,
+          model: selectedModel,
         }),
       });
 
@@ -266,7 +268,7 @@ export default function AICEOChatPage() {
   return (
     <section className="flex-1 min-w-0 flex flex-col h-screen bg-[#080d1a]">
       {/* HEADER & AGENT / PROJECT SELECTOR */}
-      <header className="border-b border-white/10 px-5 md:px-8 py-4 space-y-3 bg-[#0d1428]/70">
+      <header className="border-b border-white/10 px-5 md:px-8 py-4 space-y-3 bg-[#131316]/70">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <p className="text-xs text-blue-400 font-semibold tracking-widest uppercase">
@@ -288,9 +290,35 @@ export default function AICEOChatPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <select
+              value={selectedModel}
+              onChange={(event) => setSelectedModel(event.target.value)}
+              className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 outline-none focus:border-amber-400"
+              title="Pilih Model AI untuk diskusi (Smart Multi-Model otomatis menyesuaikan dengan spesialisasi Agent)"
+            >
+              <option value="auto" className="bg-[#09090b] text-white">
+                ⚡ Smart Multi-Model (Optimal per Agent)
+              </option>
+              <option value="claude-opus-5-5" className="bg-[#09090b] text-white">
+                🏆 Claude Opus 5.5 (AI CEO & Strategi)
+              </option>
+              <option value="claude-sonnet-5" className="bg-[#09090b] text-white">
+                🚀 Claude Sonnet 5 (Bisnis & Kreatif)
+              </option>
+              <option value="gemini-3.1-pro-preview" className="bg-[#09090b] text-white">
+                🧠 Gemini 3.1 Pro (Dashboard & Planner)
+              </option>
+              <option value="deepseek-v4.1-flash" className="bg-[#09090b] text-white">
+                ⚡ DeepSeek v4.1 Flash (Excel & Otomasi)
+              </option>
+              <option value="gpt-5.4-nano" className="bg-[#09090b] text-white">
+                🪶 GPT-5.4 Nano (Ultra Cepat)
+              </option>
+            </select>
+
+            <select
               value={selectedProjectId}
               onChange={(event) => setSelectedProjectId(event.target.value)}
-              className="rounded-xl border border-white/10 bg-[#151d32] px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-400"
+              className="rounded-xl border border-white/10 bg-[#131316] px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-400"
             >
               <option value="">🌐 Konteks: Seluruh VHQ</option>
               {projects.map((project) => (
@@ -324,7 +352,7 @@ export default function AICEOChatPage() {
                   className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
                     selected
                       ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                      : "border-white/10 bg-[#151d32]/60 text-slate-400 hover:border-white/25 hover:text-white"
+                      : "border-white/10 bg-[#131316]/60 text-slate-400 hover:border-white/25 hover:text-white"
                   }`}
                 >
                   <span>{agentIcons[agent.name] ?? "🤖"}</span>
@@ -396,7 +424,7 @@ export default function AICEOChatPage() {
                 className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                   message.role === "user"
                     ? "bg-blue-600 text-white"
-                    : "bg-[#151e30] border border-white/10 text-slate-200"
+                    : "bg-[#131316] border border-white/10 text-slate-200"
                 }`}
               >
                 <p className="text-xs font-semibold mb-2 opacity-70 uppercase">
@@ -443,14 +471,14 @@ export default function AICEOChatPage() {
                         </strong>
                       ),
                       table: ({ children }) => (
-                        <div className="my-3 overflow-x-auto rounded-lg border border-white/10 bg-[#0b1120]">
+                        <div className="my-3 overflow-x-auto rounded-lg border border-white/10 bg-[#09090b]">
                           <table className="w-full border-collapse text-left text-xs">
                             {children}
                           </table>
                         </div>
                       ),
                       thead: ({ children }) => (
-                        <thead className="border-b border-white/10 bg-[#16213a] text-[11px] font-bold uppercase text-blue-200">
+                        <thead className="border-b border-white/10 bg-[#131316] text-[11px] font-bold uppercase text-blue-200">
                           {children}
                         </thead>
                       ),
@@ -470,7 +498,7 @@ export default function AICEOChatPage() {
                         </td>
                       ),
                       pre: ({ children }) => (
-                        <pre className="my-3 overflow-x-auto rounded-lg border border-white/10 bg-[#070b14] p-3 text-xs leading-5 text-emerald-300">
+                        <pre className="my-3 overflow-x-auto rounded-lg border border-white/10 bg-[#09090b] p-3 text-xs leading-5 text-emerald-300">
                           {children}
                         </pre>
                       ),
@@ -526,7 +554,7 @@ export default function AICEOChatPage() {
               <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
                 {agentIcon}
               </div>
-              <div className="bg-[#151e30] border border-white/10 rounded-2xl px-4 py-3">
+              <div className="bg-[#131316] border border-white/10 rounded-2xl px-4 py-3">
                 <p className="text-sm text-slate-400 animate-pulse">
                   {agentName} sedang menyiapkan jawaban...
                 </p>
@@ -548,9 +576,9 @@ export default function AICEOChatPage() {
       )}
 
       {/* INPUT */}
-      <div className="border-t border-white/10 px-4 md:px-8 py-4 bg-[#0b1020]">
+      <div className="border-t border-white/10 px-4 md:px-8 py-4 bg-[#09090b]">
         <form onSubmit={sendMessage} className="max-w-4xl mx-auto">
-          <div className="flex gap-3 items-end bg-[#151e30] border border-white/10 rounded-2xl p-3 focus-within:border-blue-500/50">
+          <div className="flex gap-3 items-end bg-[#131316] border border-white/10 rounded-2xl p-3 focus-within:border-blue-500/50">
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}

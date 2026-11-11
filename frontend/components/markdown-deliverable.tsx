@@ -46,7 +46,7 @@ export default function MarkdownDeliverable({
   }
 
   return (
-    <div className="mt-5 overflow-hidden rounded-2xl border border-blue-400/20 bg-gradient-to-b from-[#0f172a] to-[#090e1c] shadow-xl">
+    <div className="mt-5 overflow-hidden rounded-2xl border border-blue-400/20 bg-gradient-to-b from-[#131316] to-[#090e1c] shadow-xl">
       {/* DELIVERABLE HEADER BAR */}
       <div className="flex flex-col gap-3 border-b border-white/10 bg-[#131d36]/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -160,14 +160,14 @@ export default function MarkdownDeliverable({
             ),
             hr: () => <hr className="my-6 border-white/10" />,
             table: ({ children }) => (
-              <div className="my-5 overflow-x-auto rounded-xl border border-white/10 bg-[#0b1120] shadow-inner">
+              <div className="my-5 overflow-x-auto rounded-xl border border-white/10 bg-[#09090b] shadow-inner">
                 <table className="w-full border-collapse text-left text-xs">
                   {children}
                 </table>
               </div>
             ),
             thead: ({ children }) => (
-              <thead className="border-b border-white/10 bg-[#16213a] text-[11px] font-bold uppercase tracking-wider text-blue-200">
+              <thead className="border-b border-white/10 bg-[#131316] text-[11px] font-bold uppercase tracking-wider text-blue-200">
                 {children}
               </thead>
             ),
@@ -188,7 +188,7 @@ export default function MarkdownDeliverable({
               </td>
             ),
             pre: ({ children }) => (
-              <pre className="my-4 overflow-x-auto rounded-xl border border-white/10 bg-[#070b14] p-4 text-xs leading-6 text-blue-100 shadow-inner">
+              <pre className="my-4 overflow-x-auto rounded-xl border border-white/10 bg-[#09090b] p-4 text-xs leading-6 text-blue-100 shadow-inner">
                 {children}
               </pre>
             ),

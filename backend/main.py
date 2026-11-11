@@ -44,6 +44,7 @@ from ai_service import (
     refine_social_platform_content,
     analyze_and_replicate_winning_posts,
     AVAILABLE_MODELS,
+    TASK_OPTIMAL_MODEL_MAP,
     resolve_ai_model,
 )
 from social_service import (
@@ -201,14 +202,6 @@ class AIChatRequest(BaseModel):
     message: str
     session_id: str = "default"
     model: Optional[str] = "auto"
-
-
-@app.get("/ai/models")
-def get_available_ai_models():
-    return {
-        "default": "auto",
-        "models": AVAILABLE_MODELS,
-    }
     agent_id: Optional[int] = None
     project_id: Optional[int] = None
 
@@ -522,6 +515,105 @@ def build_ai_context(db: Session):
 # AI AGENT EXECUTION WORKER
 # ============================================================
 
+SOCIAL_ANALYTICS_KEYWORDS = (
+    "engagement", "analytic", "analitik", "insight", "view", "impresi",
+    "threads", "instagram", "facebook", "youtube", "tiktok", "sosmed",
+    "sosial media", "social media", "postingan", "konten", "like", "komentar",
+)
+
+
+def needs_social_analytics(*texts: Optional[str]) -> bool:
+    blob = " ".join(t for t in texts if t).lower()
+    return any(k in blob for k in SOCIAL_ANALYTICS_KEYWORDS)
+
+
+def build_social_analytics_context(db: Session, sync_live: bool = True) -> str:
+    """
+    Ringkasan data analytics sosmed nyata dari VHQ untuk diberikan ke AI Agent:
+    sinkronisasi live API (bila terhubung), leaderboard engagement, dan histori posting.
+    """
+    lines: list[str] = ["=== DATA ANALYTICS SOSIAL MEDIA SOLUSI MACRO (DARI VHQ) ==="]
+    sync_note = ""
+
+    if sync_live:
+        try:
+            sync_result = sync_live_engagement_from_apis(db)
+            if sync_result.get("synced_count", 0) > 0:
+                sync_note = (
+                    f"Sinkronisasi live API berhasil: {sync_result['synced_count']} postingan diperbarui."
+                )
+            if sync_result.get("errors"):
+                err_txt = "; ".join(
+                    f"{k}: {str(v)[:160]}" for k, v in sync_result["errors"].items()
+                )
+                sync_note += f" Kendala API: {err_txt}"
+        except Exception as exc:
+            sync_note = f"Sinkronisasi live gagal: {str(exc)[:200]}"
+    if sync_note:
+        lines.append(sync_note.strip())
+
+    try:
+        metrics = (
+            db.query(SocialPostMetric)
+            .order_by(SocialPostMetric.engagement_score.desc())
+            .limit(25)
+            .all()
+        )
+    except Exception:
+        metrics = []
+
+    live = [m for m in metrics if m.external_post_id]
+    manual = [m for m in metrics if not m.external_post_id]
+
+    def fmt(m: SocialPostMetric) -> str:
+        return (
+            f"- [{m.platform.upper()}] \"{(m.title_or_hook or '')[:110]}\" | "
+            f"views={m.views or 0}, likes={m.likes or 0}, komentar={m.comments or 0}, "
+            f"share/repost={m.shares or 0}, saves={m.saves or 0}, "
+            f"skor={m.engagement_score or 0} ({m.engagement_rate or '-'})"
+        )
+
+    lines.append(
+        f"\n[A] DATA LIVE DARI API PLATFORM (terverifikasi akun asli): {len(live)} postingan"
+    )
+    if live:
+        lines.extend(fmt(m) for m in live)
+    else:
+        lines.append(
+            "(Belum ada data live. Akun belum terhubung / token belum punya izin insights.)"
+        )
+
+    lines.append(
+        f"\n[B] DATA MANUAL / BENCHMARK DI VHQ (diinput Founder atau contoh bawaan, "
+        f"BUKAN otomatis dari akun): {len(manual)} postingan"
+    )
+    lines.extend(fmt(m) for m in manual[:10])
+
+    try:
+        posts = (
+            db.query(SocialPost)
+            .order_by(SocialPost.created_at.desc())
+            .limit(30)
+            .all()
+        )
+    except Exception:
+        posts = []
+    lines.append(f"\n[C] HISTORI POSTINGAN DI SOCIAL HUB VHQ: {len(posts)} terakhir")
+    for p in posts:
+        lines.append(
+            f"- #{p.id} \"{(p.title or '')[:80]}\" | status={p.status} | "
+            f"platform={p.platforms} | jadwal={p.scheduled_at or '-'} | "
+            f"tayang={p.published_at or '-'}"
+        )
+
+    lines.append(
+        "\nATURAN: Gunakan HANYA data di atas. Bedakan jelas data live [A] vs manual/benchmark [B]. "
+        "Jika data live kosong, katakan terus terang dan jelaskan langkah menghubungkan "
+        "akun (izin threads_manage_insights), tetapi tetap analisis data [B]/[C] yang tersedia."
+    )
+    return "\n".join(lines)
+
+
 def execute_approved_plan(task_ids: list[int]):
     """
     Menjalankan task secara berurutan.
@@ -572,11 +664,20 @@ def execute_approved_plan(task_ids: list[int]):
 
             db.commit()
 
+            extra_context = (
+                build_social_analytics_context(db)
+                if needs_social_analytics(
+                    task.title, task.description, agent.role, agent.name
+                )
+                else ""
+            )
+
             result = execute_agent_task(
                 agent=agent,
                 project=task.project,
                 task=task,
                 prior_results=prior_results,
+                extra_context=extra_context,
             )
 
             task.result = result
@@ -1731,16 +1832,7 @@ def test_ai_connection():
 
 @app.get("/ai/chat/history")
 def get_chat_history(
-    session_id: str = "default"
-    model: Optional[str] = "auto"
-
-
-@app.get("/ai/models")
-def get_available_ai_models():
-    return {
-        "default": "auto",
-        "models": AVAILABLE_MODELS,
-    },
+    session_id: str = "default",
     limit: int = 100,
     db: Session = Depends(get_db),
 ):
@@ -1768,16 +1860,7 @@ def get_available_ai_models():
 
 @app.delete("/ai/chat/history")
 def delete_chat_history(
-    session_id: str = "default"
-    model: Optional[str] = "auto"
-
-
-@app.get("/ai/models")
-def get_available_ai_models():
-    return {
-        "default": "auto",
-        "models": AVAILABLE_MODELS,
-    },
+    session_id: str = "default",
     db: Session = Depends(get_db),
 ):
     db.query(ChatMessage).filter(
@@ -1789,6 +1872,15 @@ def get_available_ai_models():
     return {
         "success": True,
         "message": "Chat history berhasil dihapus.",
+    }
+
+
+@app.get("/ai/models")
+def get_available_ai_models():
+    return {
+        "default": "auto",
+        "models": AVAILABLE_MODELS,
+        "task_routing": TASK_OPTIMAL_MODEL_MAP,
     }
 
 
@@ -1918,6 +2010,11 @@ ATURAN DISKUSI DENGAN FOUNDER:
         + "\n\nCURRENT VIRTUAL HQ DATA:\n"
         + json.dumps(context, ensure_ascii=False, default=str)
         + "\n\nUse this data as context. Do not invent records."
+        + (
+            "\n\n" + build_social_analytics_context(db, sync_live=False)
+            if needs_social_analytics(message)
+            else ""
+        )
     )
 
     try:
@@ -1926,6 +2023,7 @@ ATURAN DISKUSI DENGAN FOUNDER:
             system_prompt=system_prompt,
             history=history,
             model=payload.model,
+            agent_name=responder_label,
         )
 
         assistant_message = ChatMessage(
@@ -1949,7 +2047,11 @@ ATURAN DISKUSI DENGAN FOUNDER:
             "success": True,
             "session_id": payload.session_id,
             "agent_name": responder_label,
-            "model_used": resolve_ai_model(payload.model, task_type="ceo_chat"),
+            "model_used": resolve_ai_model(
+                payload.model,
+                task_type="ceo_chat" if responder_label.upper() == "AI CEO" else "agent_chat",
+                agent_role_or_name=responder_label,
+            ),
             "message": response,
             "created_at": assistant_message.created_at,
         }
@@ -2872,8 +2974,8 @@ def generate_social_post_endpoint(
 
     try:
         raw_output = generate_social_content(
-            topic=payload.topic.strip(),
             model=payload.model,
+            topic=payload.topic.strip(),
             platforms=platforms,
             source_context=source_context,
             winning_posts_context=_get_winning_posts_context(db),
@@ -2912,7 +3014,6 @@ def generate_social_post_endpoint(
         post = SocialPost(
             title=generated["title"],
             topic=payload.topic.strip(),
-            model=payload.model,
             platforms=",".join(platforms),
             content_facebook=generated["facebook"],
             content_instagram=generated["instagram"],
@@ -4181,6 +4282,7 @@ def analyze_and_replicate_winning_endpoint(
     return {
         "success": True,
         "pattern_analysis": pattern_analysis,
+        "model_used": resolve_ai_model(payload.model, task_type="winning_copy"),
         "generated": generated,
         "model_used": resolve_ai_model(payload.model, task_type="social_post"),
         "post": saved_post,
