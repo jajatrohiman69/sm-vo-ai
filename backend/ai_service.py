@@ -13,8 +13,54 @@ OCTA_BASE_URL = os.getenv(
 )
 OCTA_MODEL = os.getenv(
     "OCTA_MODEL",
-    "claude-sonnet-5-5"
+    "claude-sonnet-5"
 )
+
+AVAILABLE_MODELS = [
+    {
+        "id": "auto",
+        "label": "⚡ Hybrid Smart (Opus 5.5 + Sonnet 5)",
+        "description": "Otomatis memakai Claude Opus 5.5 untuk Viral Copywriting/Strategi & Claude Sonnet 5 untuk tugas cepat/massal.",
+    },
+    {
+        "id": "claude-opus-5-5",
+        "label": "🏆 Claude Opus 5.5 (Flagship Copywriting & Strategi)",
+        "description": "Kualitas bahasa Indonesia paling luwes, tajam untuk Hook viral, Threads, dan analisis mendalam.",
+    },
+    {
+        "id": "claude-sonnet-5",
+        "label": "🚀 Claude Sonnet 5 (Cepat & Presisi)",
+        "description": "Seimbang dan cepat untuk generate 5 platform sekaligus & kalender konten 7 hari.",
+    },
+    {
+        "id": "seed-2-0-mini-260428",
+        "label": "🪶 Seed 2.0 Mini (Ultra Cepat)",
+        "description": "Model ringan untuk draf cepat sederhana.",
+    },
+]
+
+VALID_MODEL_IDS = {
+    "claude-opus-5-5",
+    "claude-sonnet-5",
+    "seed-2-0-mini-260428",
+}
+
+
+def resolve_ai_model(
+    requested_model: str | None = None,
+    task_type: str = "general",
+) -> str:
+    """
+    Menentukan model AI terbaik secara Hybrid Smart atau sesuai pilihan Founder.
+    - winning_copy, refine, ceo_chat -> claude-opus-5-5 (kualitas copywriting & strategi tertinggi)
+    - social_post, calendar, planner, agent_exec -> claude-sonnet-5 (cepat, terstruktur, anti-timeout)
+    """
+    if requested_model and requested_model.strip() in VALID_MODEL_IDS:
+        return requested_model.strip()
+
+    if task_type in {"winning_copy", "refine", "ceo_chat"}:
+        return "claude-opus-5-5"
+    return "claude-sonnet-5"
 
 
 # ============================================================
@@ -58,10 +104,12 @@ def get_ai_client():
 def ask_claude(
     message: str,
     system_prompt: str | None = None,
-    history: list[dict] | None = None
+    history: list[dict] | None = None,
+    model: str | None = None,
 ) -> str:
 
     client = get_ai_client()
+    chosen_model = resolve_ai_model(model, task_type="ceo_chat")
 
     messages = [
         {
@@ -92,7 +140,7 @@ def ask_claude(
     })
 
     response = client.chat.completions.create(
-        model=OCTA_MODEL,
+        model=chosen_model,
         messages=messages,
         max_tokens=2000,
         temperature=0.7
@@ -109,10 +157,12 @@ def generate_task_plan(
     project: dict,
     agents: list[dict],
     existing_tasks: list[dict],
-    instruction: str
+    instruction: str,
+    model: str | None = None,
 ) -> str:
 
     client = get_ai_client()
+    chosen_model = resolve_ai_model(model, task_type="planner")
 
     planner_system_prompt = """
 Kamu adalah AI CEO sekaligus AI Project Planner Solusi Macro.
@@ -161,7 +211,7 @@ FORMAT:
     }
 
     response = client.chat.completions.create(
-        model=OCTA_MODEL,
+        model=chosen_model,
         messages=[
             {
                 "role": "system",
@@ -172,7 +222,7 @@ FORMAT:
                 "content": str(payload)
             }
         ],
-        max_tokens=4000,
+        max_tokens=3500,
         temperature=0.2
     )
 
@@ -187,10 +237,12 @@ def execute_agent_task(
     agent,
     project,
     task,
-    prior_results=None
+    prior_results=None,
+    model: str | None = None,
 ) -> str:
 
     client = get_ai_client()
+    chosen_model = resolve_ai_model(model, task_type="agent_exec")
 
     # Membaca data Agent, Project, dan Task.
     # Bisa berupa dictionary atau SQLAlchemy object.
@@ -325,7 +377,7 @@ Berikan hasil pekerjaan yang lengkap, konkret, dan bisa ditinjau Founder.
 """
 
     response = client.chat.completions.create(
-        model=OCTA_MODEL,
+        model=chosen_model,
         messages=[
             {
                 "role": "system",
@@ -336,7 +388,7 @@ Berikan hasil pekerjaan yang lengkap, konkret, dan bisa ditinjau Founder.
                 "content": user_prompt
             }
         ],
-        max_tokens=4000,
+        max_tokens=3500,
         temperature=0.3
     )
 
@@ -360,8 +412,10 @@ def generate_social_content(
     source_context: str = "",
     tone: str = "Profesional, edukatif, dan menarik untuk UMKM & pebisnis",
     winning_posts_context: str = "",
+    model: str | None = None,
 ) -> str:
     client = get_ai_client()
+    chosen_model = resolve_ai_model(model, task_type="social_post")
 
     system_prompt = """
 Kamu adalah AI Social Media & Content Strategist di Solusi Macro Virtual HQ.
@@ -410,12 +464,12 @@ FORMAT JSON:
     }
 
     response = client.chat.completions.create(
-        model=OCTA_MODEL,
+        model=chosen_model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": str(user_payload)},
         ],
-        max_tokens=4000,
+        max_tokens=2800,
         temperature=0.5,
     )
 
@@ -429,8 +483,10 @@ def generate_social_calendar(
     tone: str = "Profesional, edukatif, dan menarik untuk UMKM & pebisnis",
     winning_posts_context: str = "",
     source_context: str = "",
+    model: str | None = None,
 ) -> str:
     client = get_ai_client()
+    chosen_model = resolve_ai_model(model, task_type="calendar")
     safe_days = max(1, min(7, int(days)))
 
     system_prompt = f"""
@@ -484,12 +540,12 @@ FORMAT JSON:
     }
 
     response = client.chat.completions.create(
-        model=OCTA_MODEL,
+        model=chosen_model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": str(user_payload)},
         ],
-        max_tokens=4096,
+        max_tokens=4000,
         temperature=0.45,
     )
 
@@ -500,8 +556,10 @@ def refine_social_platform_content(
     platform: str,
     current_content: str,
     instruction: str,
+    model: str | None = None,
 ) -> str:
     client = get_ai_client()
+    chosen_model = resolve_ai_model(model, task_type="refine")
 
     is_threads = platform.strip().lower() == "threads"
     system_prompt = f"""
@@ -520,7 +578,7 @@ KONTEN SAAT INI ({platform.upper()}):
 """
 
     response = client.chat.completions.create(
-        model=OCTA_MODEL,
+        model=chosen_model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -536,8 +594,10 @@ def analyze_and_replicate_winning_posts(
     new_topic: str = "",
     platforms: list[str] | None = None,
     tone: str = "Tajam, relevan, memancing diskusi tinggi & shareable",
+    model: str | None = None,
 ) -> str:
     client = get_ai_client()
+    chosen_model = resolve_ai_model(model, task_type="winning_copy")
     target_platforms = platforms or [
         "facebook",
         "instagram",
@@ -560,7 +620,7 @@ TUGAS UTAMA:
    - Jika `new_topic` kosong, pilih topik lanjutan paling potensial yang sejalan dengan histori pemenang tersebut.
 
 OUTPUT WAJIB:
-Kembalikan HANYA JSON valid tanpa markdown code fence.
+Kembalikan HANYA JSON valid tanpa markdown code fence. Buat padat, tajam, dan berdampak tinggi.
 
 FORMAT JSON:
 {
@@ -597,12 +657,12 @@ FORMAT JSON:
     }
 
     response = client.chat.completions.create(
-        model=OCTA_MODEL,
+        model=chosen_model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": str(user_payload)},
         ],
-        max_tokens=4096,
+        max_tokens=2800,
         temperature=0.45,
     )
 
