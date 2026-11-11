@@ -15,11 +15,11 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   experimental: {
     agentFeedback: true,
+    proxyTimeout: 120000,
   },
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
     rules: {
       "*.css": {

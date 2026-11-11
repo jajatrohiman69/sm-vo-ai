@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { API_URL } from "@/lib/api";
+import VhqShell from "@/components/vhq-shell";
 
 type AuthState = "checking" | "authenticated" | "error";
 
@@ -97,18 +98,5 @@ export default function AuthGuard({
     );
   }
 
-  return (
-    <>
-      {children}
-      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-xl border border-white/10 bg-[#10182a]/95 px-3 py-2 text-white shadow-lg backdrop-blur">
-        <span className="text-xs text-slate-300">Founder</span>
-        <button
-          onClick={logout}
-          className="rounded-lg bg-white/10 px-3 py-1.5 text-xs hover:bg-white/20"
-        >
-          Keluar
-        </button>
-      </div>
-    </>
-  );
+  return <VhqShell onLogout={logout}>{children}</VhqShell>;
 }

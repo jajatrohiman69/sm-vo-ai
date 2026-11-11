@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { API_URL } from "@/lib/api";
 
@@ -157,50 +156,16 @@ export default function ProjectsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0b1020] text-white flex">
-      <aside className="w-64 border-r border-white/10 p-6 hidden md:block shrink-0">
-        <h1 className="text-xl font-bold">
-          SOLUSI <span className="text-blue-400">MACRO</span>
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">VIRTUAL HQ</p>
-
-        <nav className="mt-12 space-y-3 text-sm">
-          <Link href="/" className="block p-3 text-slate-400 hover:text-white">
-            🏠 Overview
-          </Link>
-          <Link
-            href="/projects"
-            className="block p-3 rounded-lg bg-blue-500/20 text-blue-300"
-          >
-            📁 Projects
-          </Link>
-          <Link
-            href="/tasks"
-            className="block p-3 text-slate-400 hover:text-white"
-          >
-            📋 Tasks
-          </Link>
-          <Link
-            href="/agents"
-            className="block p-3 text-slate-400 hover:text-white"
-          >
-            🤖 AI Agents
-          </Link>
-        </nav>
-
-        <div className="absolute bottom-6 text-xs text-slate-500">
-          Internal Management System
-        </div>
-      </aside>
-
-      <section className="flex-1 min-w-0 p-6 md:p-10">
-        <header className="mb-8">
-          <p className="text-sm text-slate-400">SOLUSI MACRO / PROJECTS</p>
-          <h2 className="text-3xl font-bold mt-2">Project Management</h2>
-          <p className="text-slate-400 mt-2">
-            Manage and monitor your business projects.
-          </p>
-        </header>
+    <section className="flex-1 min-w-0 p-6 md:p-10">
+      <header className="mb-8">
+        <p className="text-xs font-semibold tracking-widest text-blue-400">
+          SOLUSI MACRO / PROJECTS
+        </p>
+        <h2 className="text-3xl font-bold mt-2">Project Management</h2>
+        <p className="text-slate-400 mt-2 text-sm">
+          Kelola dan pantau perkembangan proyek bisnis di Virtual HQ.
+        </p>
+      </header>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <form
@@ -327,6 +292,5 @@ export default function ProjectsPage() {
           </div>
         </div>
       </section>
-    </main>
   );
 }

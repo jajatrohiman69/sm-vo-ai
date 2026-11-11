@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 from dotenv import load_dotenv
@@ -347,3 +348,262 @@ Berikan hasil pekerjaan yang lengkap, konkret, dan bisa ditinjau Founder.
         )
 
     return result
+
+
+# ============================================================
+# AI OMNICHANNEL SOCIAL CONTENT GENERATOR
+# ============================================================
+
+def generate_social_content(
+    topic: str,
+    platforms: list[str],
+    source_context: str = "",
+    tone: str = "Profesional, edukatif, dan menarik untuk UMKM & pebisnis",
+    winning_posts_context: str = "",
+) -> str:
+    client = get_ai_client()
+
+    system_prompt = """
+Kamu adalah AI Social Media & Content Strategist di Solusi Macro Virtual HQ.
+
+PROFIL SOLUSI MACRO:
+Solusi Macro membantu UMKM, startup, dan perusahaan melalui:
+- Excel & Spreadsheet Automation
+- Business Dashboard & Reporting
+- Business Process Automation & Efisiensi Operasional
+
+TUGAS:
+Buat paket konten media sosial siap tayang yang disesuaikan dengan karakteristik 5 platform:
+1. Facebook Page (`facebook`): Storytelling bisnis, edukatif, ramah diskusi, dilengkapi CTA jelas.
+2. Instagram (`instagram`): Format struktur Carousel (Slide 1..N) + Caption menarik + Hashtag relevan.
+3. YouTube (`youtube`): Judul video SEO-friendly, Deskripsi lengkap, Timestamp/Outline, dan Tags, atau naskah YouTube Shorts.
+4. TikTok (`tiktok`): Naskah video pendek dengan Hook 3 detik pertama yang kuat, Body visual/narasi singkat, CTA, dan Caption + Hashtag.
+5. Threads (`threads`): Buat 3 sampai 5 utas (thread) berantai yang ringkas, natural, conversational, dan mudah dibaca (maksimal 450 karakter per utas). JANGAN tulis label "[Utas 1]" atau "Utas 1:" di dalam teks. Pisahkan setiap bagian utas menggunakan baris pemisah persis: \n\n---\n\n
+
+OUTPUT WAJIB:
+Kembalikan HANYA JSON valid tanpa teks tambahan di luar JSON dan tanpa markdown code fence.
+
+FORMAT JSON:
+{
+  "title": "Judul kampanye konten",
+  "facebook": "Isi konten Facebook Page...",
+  "instagram": "Isi konten Instagram...",
+  "youtube": "Isi konten YouTube...",
+  "tiktok": "Isi konten TikTok...",
+  "threads": [
+    "Utas pertama (Hook tajam & memancing rasa penasaran, gunakan spasi antar paragraf agar rapi)...",
+    "Utas kedua (Masalah utama / insight praktis dengan bullet point singkat)...",
+    "Utas ketiga (Solusi konkret / langkah yang bisa langsung dipraktikkan)...",
+    "Utas keempat (Penutup & pertanyaan diskusi / CTA lembut)..."
+  ],
+  "scheduled_at": "YYYY-MM-DDTHH:MM jika Founder menyebut jadwal tayang (contoh: besok jam 09:00), atau null jika tidak"
+}
+"""
+
+    user_payload = {
+        "current_local_time": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+        "topic_or_instruction": topic,
+        "target_platforms": platforms,
+        "tone": tone,
+        "source_task_or_project_context": source_context,
+        "winning_high_engagement_posts_to_emulate": winning_posts_context,
+    }
+
+    response = client.chat.completions.create(
+        model=OCTA_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": str(user_payload)},
+        ],
+        max_tokens=4000,
+        temperature=0.5,
+    )
+
+    return response.choices[0].message.content or ""
+
+
+def generate_social_calendar(
+    campaign_theme: str,
+    days: int,
+    platforms: list[str],
+    tone: str = "Profesional, edukatif, dan menarik untuk UMKM & pebisnis",
+    winning_posts_context: str = "",
+    source_context: str = "",
+) -> str:
+    client = get_ai_client()
+    safe_days = max(1, min(7, int(days)))
+
+    system_prompt = f"""
+Kamu adalah AI Chief Content Officer di Solusi Macro Virtual HQ.
+
+TUGAS:
+Susun Kalender Konten Omnichannel selama {safe_days} hari berturut-turut dengan alur kampanye yang strategis:
+- Hari-hari awal: Edukasi masalah (Pain Point UMKM/Bisnis), Mitos vs Fakta.
+- Hari pertengahan: Tips praktis Excel/Spreadsheet/Otomasi, Studi Kasus efisiensi.
+- Hari akhir: Solusi Dashboard/Automation Solusi Macro & Call to Action (CTA) konsultasi.
+
+Untuk SETIAP HARI, sediakan konten siap tayang untuk platform yang diminta:
+- `facebook`: Storytelling bisnis & diskusi.
+- `instagram`: Struktur Carousel + Caption + Hashtag.
+- `youtube`: Judul + Deskripsi / Naskah Shorts.
+- `tiktok`: Naskah Hook 3 detik + Body + CTA + Caption.
+- `threads`: Array berisi 3-4 utas berantai yang rapi, tanpa label "[Utas 1]", masing-masing maksimal 420 karakter.
+
+OUTPUT WAJIB:
+Kembalikan HANYA JSON valid tanpa markdown code fence.
+
+FORMAT JSON:
+{{
+  "campaign_name": "Nama kampanye",
+  "days": [
+    {{
+      "day": 1,
+      "angle": "Edukasi Masalah / Hook",
+      "title": "Judul konten hari ke-1",
+      "facebook": "Isi Facebook...",
+      "instagram": "Isi Instagram...",
+      "youtube": "Isi YouTube...",
+      "tiktok": "Isi TikTok...",
+      "threads": [
+        "Utas 1 (Hook tajam)...",
+        "Utas 2 (Penjelasan poin)...",
+        "Utas 3 (Solusi & pertanyaan diskusi)..."
+      ]
+    }}
+  ]
+}}
+"""
+
+    user_payload = {
+        "campaign_theme": campaign_theme,
+        "days_count": safe_days,
+        "target_platforms": platforms,
+        "tone": tone,
+        "context": source_context,
+        "winning_high_engagement_posts_to_emulate": winning_posts_context,
+    }
+
+    response = client.chat.completions.create(
+        model=OCTA_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": str(user_payload)},
+        ],
+        max_tokens=4096,
+        temperature=0.45,
+    )
+
+    return response.choices[0].message.content or ""
+
+
+def refine_social_platform_content(
+    platform: str,
+    current_content: str,
+    instruction: str,
+) -> str:
+    client = get_ai_client()
+
+    is_threads = platform.strip().lower() == "threads"
+    system_prompt = f"""
+Kamu adalah AI Social Media Specialist di Solusi Macro Virtual HQ.
+Tugasmu adalah menyempurnakan konten untuk platform: {platform.upper()} sesuai instruksi Founder.
+
+{"ATURAN KHUSUS THREADS: Kembalikan utas berantai yang dipisahkan dengan baris '\\n\\n---\\n\\n' tanpa label '[Utas 1]' atau 'Utas 1:'. Setiap bagian utas maksimal 450 karakter dan rapi." if is_threads else "Kembalikan langsung teks hasil revisi yang siap diposting tanpa komentar pengantar dari AI."}
+"""
+
+    user_prompt = f"""
+INSTRUKSI REVISI:
+{instruction}
+
+KONTEN SAAT INI ({platform.upper()}):
+{current_content}
+"""
+
+    response = client.chat.completions.create(
+        model=OCTA_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        max_tokens=2000,
+        temperature=0.4,
+    )
+    return (response.choices[0].message.content or "").strip()
+
+
+def analyze_and_replicate_winning_posts(
+    winning_posts: list[dict],
+    new_topic: str = "",
+    platforms: list[str] | None = None,
+    tone: str = "Tajam, relevan, memancing diskusi tinggi & shareable",
+) -> str:
+    client = get_ai_client()
+    target_platforms = platforms or [
+        "facebook",
+        "instagram",
+        "youtube",
+        "tiktok",
+        "threads",
+    ]
+
+    system_prompt = """
+Kamu adalah AI Growth & Viral Copywriting Strategist di Solusi Macro Virtual HQ.
+
+TUGAS UTAMA:
+1. Pelajari secara mendalam daftar HISTORI POSTINGAN DENGAN ENGAGEMENT TERTINGGI (Winning Posts) milik akun ini.
+2. Bedah mengapa postingan-postingan tersebut disukai, dikomentari, dan dibagikan oleh audiens:
+   - Apa pola kalimat pembuka (Hook DNA) yang berhasil menghentikan scroll?
+   - Bagaimana struktur ritme kalimat, pemilihan kata emosional/angka spesifik, dan format penyampaiannya?
+   - Apa pemicu psikologis yang membuat orang terdorong berkomentar atau share?
+3. Gunakan FORMULA PEMENANG tersebut untuk membuat paket konten/copywriting BARU di 5 platform (`facebook`, `instagram`, `youtube`, `tiktok`, `threads`) yang punya gaya, ketajaman hook, dan daya tarik serupa agar engagement naik signifikan!
+   - Jika Founder memberikan `new_topic`, terapkan formula pemenang tersebut pada `new_topic`.
+   - Jika `new_topic` kosong, pilih topik lanjutan paling potensial yang sejalan dengan histori pemenang tersebut.
+
+OUTPUT WAJIB:
+Kembalikan HANYA JSON valid tanpa markdown code fence.
+
+FORMAT JSON:
+{
+  "pattern_analysis": {
+    "hook_dna": "Penjelasan pola Hook pemenang dari histori postingan teratas...",
+    "copywriting_formula": "Rumus struktur copywriting & ritme kalimat yang terbukti disukai audiens...",
+    "engagement_triggers": "Alasan utama audiens banyak like/komen/share dan cara mereplikasinya...",
+    "recommended_next_topics": [
+      "Ide topik potensial 1...",
+      "Ide topik potensial 2...",
+      "Ide topik potensial 3..."
+    ]
+  },
+  "title": "Judul konten baru berbasis Winning Formula",
+  "facebook": "Isi konten Facebook Page...",
+  "instagram": "Isi konten Instagram (Carousel + Caption)...",
+  "youtube": "Isi konten YouTube / Shorts...",
+  "tiktok": "Isi naskah TikTok (Hook 3 detik + Body + CTA)...",
+  "threads": [
+    "Utas 1 (Hook tajam berpola sama dengan winning post)...",
+    "Utas 2 (Isi poin bernilai tinggi & spesifik)...",
+    "Utas 3 (Contoh nyata / studi kasus singkat)...",
+    "Utas 4 (Pertanyaan pemicu komentar / diskusi)..."
+  ]
+}
+"""
+
+    user_payload = {
+        "top_engagement_history": winning_posts,
+        "requested_new_topic": new_topic.strip()
+        or "Buat topik baru yang paling berpotensi viral mengikuti pola histori tertinggi di atas",
+        "target_platforms": target_platforms,
+        "tone": tone,
+    }
+
+    response = client.chat.completions.create(
+        model=OCTA_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": str(user_payload)},
+        ],
+        max_tokens=4096,
+        temperature=0.45,
+    )
+
+    return response.choices[0].message.content or ""

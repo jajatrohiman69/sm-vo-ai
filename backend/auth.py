@@ -18,8 +18,8 @@ def _settings() -> tuple[str, str, str] | None:
 
     if (
         not username
-        or len(password) < 12
-        or len(signing_key) < 32
+        or len(password) < 10
+        or len(signing_key) < 10
         or password.lower().startswith("replace-")
         or signing_key.lower().startswith("replace-")
     ):

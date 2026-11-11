@@ -164,3 +164,72 @@ class TaskPlanItem(Base):
     )
 
     assigned_agent = relationship("Agent")
+
+
+class SocialConfig(Base):
+    __tablename__ = "social_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    gas_webapp_url = Column(Text, nullable=True)
+    gas_secret_key = Column(String, nullable=True)
+    default_platforms = Column(
+        String,
+        default="facebook,instagram,youtube,tiktok,threads"
+    )
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class SocialAccount(Base):
+    __tablename__ = "social_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    platform = Column(String, unique=True, index=True, nullable=False)
+    enabled = Column(Integer, default=1)
+    account_name = Column(String, nullable=True)
+    account_id = Column(String, nullable=True)
+    credentials_json = Column(Text, nullable=True)
+    status = Column(String, default="Not Connected")
+    last_verified_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class SocialPost(Base):
+    __tablename__ = "social_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    topic = Column(Text, nullable=True)
+    platforms = Column(String, nullable=False)
+    content_facebook = Column(Text, nullable=True)
+    content_instagram = Column(Text, nullable=True)
+    content_youtube = Column(Text, nullable=True)
+    content_tiktok = Column(Text, nullable=True)
+    content_threads = Column(Text, nullable=True)
+    media_url = Column(Text, nullable=True)
+    scheduled_at = Column(String, nullable=True)
+    status = Column(String, default="Draft")
+    gas_response = Column(Text, nullable=True)
+    source_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    published_at = Column(DateTime, nullable=True)
+
+
+class SocialPostMetric(Base):
+    __tablename__ = "social_post_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("social_posts.id"), nullable=True)
+    platform = Column(String, nullable=False, index=True)
+    external_post_id = Column(String, nullable=True)
+    title_or_hook = Column(String, nullable=False)
+    content_snippet = Column(Text, nullable=False)
+    views = Column(Integer, default=0)
+    likes = Column(Integer, default=0)
+    comments = Column(Integer, default=0)
+    shares = Column(Integer, default=0)
+    saves = Column(Integer, default=0)
+    engagement_score = Column(Integer, default=0, index=True)
+    engagement_rate = Column(String, nullable=True)
+    ai_pattern_notes = Column(Text, nullable=True)
+    recorded_at = Column(DateTime, default=datetime.now)

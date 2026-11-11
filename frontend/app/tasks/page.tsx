@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { API_URL } from "@/lib/api";
+import MarkdownDeliverable from "@/components/markdown-deliverable";
 
 type Agent = {
   id: number;
@@ -39,6 +40,16 @@ type TaskForm = {
   priority: string;
   assigned_agent_id: string;
   project_id: string;
+  auto_execute: boolean;
+};
+
+const INITIAL_FORM: TaskForm = {
+  title: "",
+  description: "",
+  priority: "Normal",
+  assigned_agent_id: "",
+  project_id: "",
+  auto_execute: true,
 };
 
 function getAgentName(agent: Task["assigned_agent"]) {
@@ -68,30 +79,30 @@ function formatDate(value?: string | null) {
 function statusClass(status: string) {
   switch (status?.toLowerCase()) {
     case "pending":
-      return "bg-amber-100 text-amber-700";
+      return "bg-yellow-400/10 text-yellow-300 border border-yellow-400/20";
     case "in progress":
-      return "bg-blue-100 text-blue-700";
+      return "bg-blue-400/10 text-blue-300 border border-blue-400/20";
     case "review":
-      return "bg-purple-100 text-purple-700";
+      return "bg-purple-400/10 text-purple-300 border border-purple-400/20";
     case "completed":
-      return "bg-green-100 text-green-700";
+      return "bg-green-400/10 text-green-300 border border-green-400/20";
     case "failed":
-      return "bg-red-100 text-red-700";
+      return "bg-red-400/10 text-red-300 border border-red-400/20";
     default:
-      return "bg-gray-100 text-gray-700";
+      return "bg-white/5 text-slate-300 border border-white/10";
   }
 }
 
 function priorityClass(priority: string) {
   switch (priority?.toLowerCase()) {
     case "urgent":
-      return "bg-red-100 text-red-700";
+      return "bg-red-500/15 text-red-300";
     case "high":
-      return "bg-orange-100 text-orange-700";
+      return "bg-orange-500/15 text-orange-300";
     case "low":
-      return "bg-gray-100 text-gray-600";
+      return "bg-slate-500/15 text-slate-400";
     default:
-      return "bg-blue-50 text-blue-700";
+      return "bg-blue-500/15 text-blue-300";
   }
 }
 
@@ -159,11 +170,19 @@ export default function TasksPage() {
   const [projects, setProjects] = useState<Project[]>([]);
 
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [reviewingId, setReviewingId] = useState<number | null>(null);
   const [retryingId, setRetryingId] = useState<number | null>(null);
+  const [executingId, setExecutingId] = useState<number | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null);
+
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [projectFilter, setProjectFilter] = useState("All");
+  const [agentFilter, setAgentFilter] = useState("All");
 
   // Founder approval state
   const [approvalTaskId, setApprovalTaskId] = useState<number | null>(null);
@@ -176,13 +195,7 @@ export default function TasksPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState<TaskForm>({
-    title: "",
-    description: "",
-    priority: "Normal",
-    assigned_agent_id: "",
-    project_id: "",
-  });
+  const [form, setForm] = useState<TaskForm>(INITIAL_FORM);
 
   // =========================================================
   // LOAD DATA
@@ -196,7 +209,6 @@ export default function TasksPage() {
       setTasks(data.tasks);
       setAgents(data.agents);
       setProjects(data.projects);
-
       setError("");
     } catch (err) {
       setError(
@@ -249,10 +261,32 @@ export default function TasksPage() {
   }, []);
 
   // =========================================================
-  // CREATE TASK
+  // CREATE / UPDATE TASK
   // =========================================================
 
-  async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
+  function startEditing(task: Task) {
+    setEditingTaskId(task.id);
+    setForm({
+      title: task.title,
+      description: task.description || "",
+      priority: task.priority || "Normal",
+      assigned_agent_id: task.assigned_agent_id
+        ? String(task.assigned_agent_id)
+        : "",
+      project_id: task.project_id ? String(task.project_id) : "",
+      auto_execute: false,
+    });
+    setError("");
+    setMessage("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEditing() {
+    setEditingTaskId(null);
+    setForm(INITIAL_FORM);
+  }
+
+  async function handleSubmitTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!form.title.trim()) {
@@ -260,7 +294,7 @@ export default function TasksPage() {
       return;
     }
 
-    setCreating(true);
+    setSaving(true);
     setError("");
     setMessage("");
 
@@ -273,42 +307,191 @@ export default function TasksPage() {
           ? Number(form.assigned_agent_id)
           : null,
         project_id: form.project_id ? Number(form.project_id) : null,
+        ...(editingTaskId
+          ? {}
+          : {
+              auto_execute: Boolean(
+                form.auto_execute && form.assigned_agent_id,
+              ),
+            }),
       };
 
-      const response = await fetch(`${API_URL}/tasks`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        editingTaskId
+          ? `${API_URL}/tasks/${editingTaskId}`
+          : `${API_URL}/tasks`,
+        {
+          method: editingTaskId ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-      });
+      );
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data?.detail || data?.message || "Gagal membuat task.");
+        throw new Error(
+          data?.detail || data?.message || "Gagal menyimpan task.",
+        );
       }
 
-      setForm({
-        title: "",
-        description: "",
-        priority: "Normal",
-        assigned_agent_id: "",
-        project_id: "",
-      });
+      const wasEditing = Boolean(editingTaskId);
+      const willAutoExecute =
+        !wasEditing && form.auto_execute && Boolean(form.assigned_agent_id);
 
-      setMessage("Task berhasil dibuat.");
+      setEditingTaskId(null);
+      setForm(INITIAL_FORM);
+
+      setMessage(
+        wasEditing
+          ? "Task berhasil diperbarui."
+          : willAutoExecute
+            ? "Task berhasil dibuat dan langsung dijalankan oleh AI Agent."
+            : "Task berhasil dibuat.",
+      );
 
       await loadData(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
   // =========================================================
-  // FOUNDER REVIEW HANDLER
+  // DELETE TASK
+  // =========================================================
+
+  async function handleDeleteTask(task: Task) {
+    if (!window.confirm(`Hapus task "${task.title}"?`)) return;
+
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/tasks/${task.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.detail || "Gagal menghapus task.");
+      }
+
+      if (editingTaskId === task.id) cancelEditing();
+      setMessage(data?.message || "Task berhasil dihapus.");
+      await loadData(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menghapus task.");
+    }
+  }
+
+  // =========================================================
+  // EXECUTE PENDING TASK
+  // =========================================================
+
+  async function handleExecuteTask(taskId: number) {
+    setExecutingId(taskId);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/tasks/${taskId}/execute`, {
+        method: "POST",
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.detail || "Gagal menjalankan task.");
+      }
+
+      setMessage(data?.message || "Task mulai dikerjakan oleh AI Agent.");
+      await loadData(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menjalankan task.");
+    } finally {
+      setExecutingId(null);
+    }
+  }
+
+  async function handleExecuteAllPending() {
+    if (
+      !window.confirm(
+        "Jalankan semua task berstatus Pending yang sudah memiliki AI Agent?",
+      )
+    ) {
+      return;
+    }
+
+    setBulkLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/tasks/execute-pending`, {
+        method: "POST",
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.detail || "Gagal menjalankan task Pending.");
+      }
+
+      setMessage(
+        data?.message || "Seluruh task Pending mulai dikerjakan AI Agents.",
+      );
+      await loadData(false);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Gagal menjalankan task Pending.",
+      );
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  async function handleRetryAllFailed() {
+    if (!window.confirm("Jalankan ulang semua task yang berstatus Failed?")) {
+      return;
+    }
+
+    setBulkLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/tasks/retry-failed`, {
+        method: "POST",
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data?.detail === "string"
+            ? data.detail
+            : "Gagal menjalankan ulang task Failed.",
+        );
+      }
+
+      setMessage(
+        data?.message || "Seluruh task Failed dimasukkan kembali ke antrean.",
+      );
+      await loadData(false);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Gagal menjalankan ulang task Failed.",
+      );
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  // =========================================================
+  // FOUNDER REVIEW & RETRY HANDLERS
   // =========================================================
 
   async function handleReview(
@@ -358,11 +541,8 @@ export default function TasksPage() {
           : "Feedback terkirim. AI Agent akan mengerjakan revisi.",
       );
 
-      // Reset approval state
       setApprovalTaskId(null);
       setApprovalFeedback("");
-
-      // Reset revision state
       setRevisionTaskId(null);
       setRevisionFeedback("");
 
@@ -404,105 +584,171 @@ export default function TasksPage() {
   }
 
   // =========================================================
-  // TASK STATISTICS
+  // TASK STATISTICS & FILTERING
   // =========================================================
 
   const totalTasks = tasks.length;
-
   const pendingTasks = tasks.filter((task) => task.status === "Pending").length;
-
+  const executablePendingCount = tasks.filter(
+    (task) => task.status === "Pending" && Boolean(task.assigned_agent_id),
+  ).length;
   const inProgressTasks = tasks.filter(
     (task) => task.status === "In Progress",
   ).length;
-
   const reviewTasks = tasks.filter((task) => task.status === "Review").length;
-
   const completedTasks = tasks.filter(
     (task) => task.status === "Completed",
   ).length;
-
   const failedTasks = tasks.filter((task) => task.status === "Failed").length;
+
+  const filteredTasks = tasks.filter((task) => {
+    if (statusFilter !== "All" && task.status !== statusFilter) return false;
+    if (
+      projectFilter !== "All" &&
+      String(task.project_id ?? "") !== projectFilter
+    ) {
+      return false;
+    }
+    if (
+      agentFilter !== "All" &&
+      String(task.assigned_agent_id ?? "") !== agentFilter
+    ) {
+      return false;
+    }
+    return true;
+  });
 
   // =========================================================
   // RENDER
   // =========================================================
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 text-gray-900 md:p-8">
+    <section className="flex-1 min-w-0 p-6 md:p-10">
       <div className="mx-auto max-w-7xl space-y-8">
         {/* PAGE HEADER */}
-
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
-              Solusi Macro / Virtual HQ
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-400">
+              SOLUSI MACRO / TASKS
             </p>
 
             <h1 className="mt-2 text-3xl font-bold">Task Management</h1>
 
-            <p className="mt-2 text-sm text-gray-500">
-              Monitor pekerjaan dan review hasil kerja AI Agents.
+            <p className="mt-2 text-sm text-slate-400">
+              Kelola tugas, jalankan AI Specialist Agents, dan tinjau hasil
+              pekerjaan secara langsung.
             </p>
           </div>
 
-          <button
-            onClick={() => loadData(true)}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-100"
-          >
-            ↻ Refresh Data
-          </button>
-        </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {executablePendingCount > 0 && (
+              <button
+                type="button"
+                onClick={handleExecuteAllPending}
+                disabled={bulkLoading}
+                className="rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-4 py-2.5 text-xs font-semibold text-white transition"
+              >
+                ▶ Execute All Pending ({executablePendingCount})
+              </button>
+            )}
+
+            {failedTasks > 0 && (
+              <button
+                type="button"
+                onClick={handleRetryAllFailed}
+                disabled={bulkLoading}
+                className="rounded-xl border border-red-400/30 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-50 px-4 py-2.5 text-xs font-semibold text-red-300 transition"
+              >
+                ↻ Retry All Failed ({failedTasks})
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => void loadData(true)}
+              className="rounded-xl border border-white/10 bg-[#151d32] px-4 py-2.5 text-xs font-medium text-slate-300 hover:bg-white/5 transition"
+            >
+              ↻ Refresh
+            </button>
+          </div>
+        </header>
 
         {/* ALERTS */}
-
         {message && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+          <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-300">
             {message}
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
             {error}
           </div>
         )}
 
         {/* TASK STATISTICS */}
-
         <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           {[
-            { label: "Total Tasks", value: totalTasks },
-            { label: "Pending", value: pendingTasks },
-            { label: "In Progress", value: inProgressTasks },
-            { label: "For Review", value: reviewTasks },
-            { label: "Completed", value: completedTasks },
-            { label: "Failed", value: failedTasks },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-            >
-              <p className="text-xs font-medium text-gray-500">{item.label}</p>
-
-              <p className="mt-2 text-3xl font-bold">{item.value}</p>
-            </div>
-          ))}
+            { label: "Total Tasks", value: totalTasks, filter: "All" },
+            { label: "Pending", value: pendingTasks, filter: "Pending" },
+            {
+              label: "In Progress",
+              value: inProgressTasks,
+              filter: "In Progress",
+            },
+            { label: "For Review", value: reviewTasks, filter: "Review" },
+            { label: "Completed", value: completedTasks, filter: "Completed" },
+            { label: "Failed", value: failedTasks, filter: "Failed" },
+          ].map((item) => {
+            const active = statusFilter === item.filter;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => setStatusFilter(item.filter)}
+                className={`rounded-2xl border p-5 text-left transition ${
+                  active
+                    ? "border-blue-400 bg-blue-500/10"
+                    : "border-white/10 bg-[#151d32] hover:border-white/25"
+                }`}
+              >
+                <p className="text-xs font-medium text-slate-400">
+                  {item.label}
+                </p>
+                <p className="mt-2 text-3xl font-bold">{item.value}</p>
+              </button>
+            );
+          })}
         </section>
 
-        {/* CREATE TASK */}
+        {/* CREATE / EDIT TASK */}
+        <section className="rounded-2xl border border-white/10 bg-[#151d32] p-6">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold">
+                {editingTaskId
+                  ? `Edit Task #${editingTaskId}`
+                  : "＋ Create New Task"}
+              </h2>
+              <p className="mt-1 text-xs text-slate-400">
+                Buat task dan tugaskan ke AI Specialist Agent untuk dikerjakan.
+              </p>
+            </div>
 
-        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-lg font-bold">Create New Task</h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Buat task dan tentukan AI Agent yang bertanggung jawab.
-            </p>
+            {editingTaskId && (
+              <button
+                type="button"
+                onClick={cancelEditing}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
+              >
+                Cancel Edit
+              </button>
+            )}
           </div>
 
-          <form onSubmit={handleCreateTask} className="space-y-4">
+          <form onSubmit={handleSubmitTask} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">
                 Task Title *
               </label>
 
@@ -512,15 +758,15 @@ export default function TasksPage() {
                 onChange={(event) =>
                   setForm({ ...form, title: event.target.value })
                 }
-                placeholder="Contoh: Analisis kebutuhan dashboard penjualan"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="Contoh: Analisis kebutuhan dashboard penjualan UMKM"
+                className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-400"
                 required
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">
-                Description
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+                Description / Instruksi Detail
               </label>
 
               <textarea
@@ -528,16 +774,16 @@ export default function TasksPage() {
                 onChange={(event) =>
                   setForm({ ...form, description: event.target.value })
                 }
-                placeholder="Jelaskan detail pekerjaan yang harus dilakukan..."
+                placeholder="Jelaskan detail pekerjaan, konteks bisnis, dan hasil konkret yang diharapkan..."
                 rows={3}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-400"
               />
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm font-medium">
-                  Assign Agent
+                <label className="mb-1.5 block text-xs font-medium text-slate-300">
+                  Assign Specialist Agent
                 </label>
 
                 <select
@@ -548,20 +794,20 @@ export default function TasksPage() {
                       assigned_agent_id: event.target.value,
                     })
                   }
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm"
+                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-3 text-sm text-white outline-none focus:border-blue-400"
                 >
-                  <option value="">Unassigned</option>
+                  <option value="">-- Unassigned --</option>
 
                   {agents.map((agent) => (
                     <option key={agent.id} value={agent.id}>
-                      {agent.name}
+                      {agent.name} {agent.role ? `(${agent.role})` : ""}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium">
+                <label className="mb-1.5 block text-xs font-medium text-slate-300">
                   Project
                 </label>
 
@@ -573,9 +819,9 @@ export default function TasksPage() {
                       project_id: event.target.value,
                     })
                   }
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm"
+                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-3 text-sm text-white outline-none focus:border-blue-400"
                 >
-                  <option value="">No project</option>
+                  <option value="">-- No project --</option>
 
                   {projects.map((project) => (
                     <option key={project.id} value={project.id}>
@@ -586,7 +832,7 @@ export default function TasksPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium">
+                <label className="mb-1.5 block text-xs font-medium text-slate-300">
                   Priority
                 </label>
 
@@ -598,7 +844,7 @@ export default function TasksPage() {
                       priority: event.target.value,
                     })
                   }
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm"
+                  className="w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 py-3 text-sm text-white outline-none focus:border-blue-400"
                 >
                   <option value="Low">Low</option>
                   <option value="Normal">Normal</option>
@@ -608,64 +854,134 @@ export default function TasksPage() {
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2">
+              {!editingTaskId ? (
+                <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={
+                      form.auto_execute && Boolean(form.assigned_agent_id)
+                    }
+                    disabled={!form.assigned_agent_id}
+                    onChange={(event) =>
+                      setForm({ ...form, auto_execute: event.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-white/20 bg-[#0b1020] text-blue-600"
+                  />
+                  <span>
+                    Jalankan otomatis dengan AI Agent sekarang{" "}
+                    {!form.assigned_agent_id && (
+                      <span className="text-slate-500">
+                        (pilih Agent terlebih dahulu)
+                      </span>
+                    )}
+                  </span>
+                </label>
+              ) : (
+                <div />
+              )}
+
               <button
                 type="submit"
-                disabled={creating}
-                className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={saving}
+                className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 transition"
               >
-                {creating ? "Creating..." : "+ Create Task"}
+                {saving
+                  ? "Saving..."
+                  : editingTaskId
+                    ? "Save Changes"
+                    : form.auto_execute && form.assigned_agent_id
+                      ? "⚡ Create & Execute Task"
+                      : "+ Create Task"}
               </button>
             </div>
           </form>
         </section>
 
-        {/* TASK LIST */}
-
+        {/* TASK LIST & FILTERS */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold">All Tasks</h2>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Daftar pekerjaan seluruh AI Agents.
+              <p className="mt-1 text-xs text-slate-400">
+                Menampilkan {filteredTasks.length} dari {totalTasks} task.
               </p>
             </div>
 
-            <span className="text-sm text-gray-500">{totalTasks} task(s)</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="rounded-xl border border-white/10 bg-[#151d32] px-3 py-2 text-xs text-slate-200 outline-none"
+              >
+                <option value="All">Semua Status</option>
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Review">For Review</option>
+                <option value="Completed">Completed</option>
+                <option value="Failed">Failed</option>
+              </select>
+
+              <select
+                value={projectFilter}
+                onChange={(event) => setProjectFilter(event.target.value)}
+                className="rounded-xl border border-white/10 bg-[#151d32] px-3 py-2 text-xs text-slate-200 outline-none"
+              >
+                <option value="All">Semua Project</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={String(project.id)}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={agentFilter}
+                onChange={(event) => setAgentFilter(event.target.value)}
+                className="rounded-xl border border-white/10 bg-[#151d32] px-3 py-2 text-xs text-slate-200 outline-none"
+              >
+                <option value="All">Semua Agent</option>
+                {agents.map((agent) => (
+                  <option key={agent.id} value={String(agent.id)}>
+                    {agent.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {loading ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-gray-500">
+            <div className="rounded-2xl border border-white/10 bg-[#151d32] p-10 text-center text-sm text-slate-400">
               Loading tasks...
             </div>
-          ) : tasks.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
+          ) : filteredTasks.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/15 bg-[#151d32]/60 p-12 text-center">
               <div className="text-4xl">📋</div>
-
-              <h3 className="mt-3 font-semibold">Belum ada task</h3>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Buat task baru atau generate Task Plan melalui AI CEO Task
-                Planner.
+              <h3 className="mt-3 font-semibold text-white">
+                Tidak ada task yang sesuai
+              </h3>
+              <p className="mt-1 text-xs text-slate-400">
+                Buat task baru di atas atau gunakan AI CEO Task Planner untuk
+                membuat rencana kerja otomatis.
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {tasks.map((task) => {
+              {filteredTasks.map((task) => {
                 const expanded = expandedTaskId === task.id;
                 const reviewing = reviewingId === task.id;
+                const executing = executingId === task.id;
 
                 return (
                   <article
                     key={task.id}
-                    className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                    className="overflow-hidden rounded-2xl border border-white/10 bg-[#151d32]"
                   >
                     <div className="p-5 md:p-6">
                       <div className="flex flex-col justify-between gap-4 md:flex-row">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-semibold text-gray-400">
+                            <span className="text-xs font-semibold text-slate-500">
                               TASK #{task.id}
                             </span>
 
@@ -682,40 +998,42 @@ export default function TasksPage() {
                             </span>
                           </div>
 
-                          <h3 className="mt-3 text-lg font-bold">
+                          <h3 className="mt-3 text-lg font-bold text-white">
                             {task.title}
                           </h3>
 
                           {task.description && (
-                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-600">
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
                               {task.description}
                             </p>
                           )}
 
-                          <div className="mt-4 grid gap-2 text-sm text-gray-500 md:grid-cols-2">
+                          <div className="mt-4 grid gap-2 text-xs text-slate-400 md:grid-cols-2">
                             <p>
-                              <span className="font-medium text-gray-700">
+                              <span className="font-medium text-slate-300">
                                 Assigned Agent:
                               </span>{" "}
-                              {getAgentName(task.assigned_agent)}
+                              <span className="text-blue-300">
+                                🤖 {getAgentName(task.assigned_agent)}
+                              </span>
                             </p>
 
                             <p>
-                              <span className="font-medium text-gray-700">
+                              <span className="font-medium text-slate-300">
                                 Project:
                               </span>{" "}
                               {getProjectName(task.project)}
                             </p>
 
                             <p>
-                              <span className="font-medium text-gray-700">
+                              <span className="font-medium text-slate-300">
                                 Created:
                               </span>{" "}
                               {formatDate(task.created_at)}
                             </p>
 
                             <p>
-                              <span className="font-medium text-gray-700">
+                              <span className="font-medium text-slate-300">
                                 Attempts:
                               </span>{" "}
                               {task.attempt_count ?? 0}
@@ -723,26 +1041,27 @@ export default function TasksPage() {
                           </div>
 
                           {task.status === "In Progress" && (
-                            <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700">
-                              AI Agent sedang mengerjakan task ini. Halaman akan
-                              memperbarui status secara otomatis.
+                            <div className="mt-4 rounded-xl border border-blue-400/20 bg-blue-500/10 p-3.5 text-xs text-blue-300 animate-pulse">
+                              ⚙️ AI Agent sedang mengerjakan task ini. Halaman
+                              akan memperbarui status secara otomatis...
                             </div>
                           )}
 
                           {task.status === "Failed" && (
-                            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
-                              <p className="text-sm font-semibold text-red-700">
+                            <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+                              <p className="text-xs font-semibold text-red-300">
                                 Task execution failed
                               </p>
 
-                              <p className="mt-1 whitespace-pre-wrap text-sm text-red-600">
+                              <p className="mt-1 whitespace-pre-wrap text-xs text-red-200/90">
                                 {task.error_message ||
                                   "Tidak ada detail error dari backend."}
                               </p>
                               <button
-                                onClick={() => handleRetry(task.id)}
+                                type="button"
+                                onClick={() => void handleRetry(task.id)}
                                 disabled={retryingId === task.id}
-                                className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {retryingId === task.id
                                   ? "Memasukkan ke antrean..."
@@ -752,85 +1071,111 @@ export default function TasksPage() {
                           )}
                         </div>
 
-                        <div className="flex shrink-0 items-start">
+                        {/* ACTION BUTTONS */}
+                        <div className="flex flex-wrap shrink-0 items-start gap-2">
+                          {task.status === "Pending" &&
+                            Boolean(task.assigned_agent_id) && (
+                              <button
+                                type="button"
+                                onClick={() => void handleExecuteTask(task.id)}
+                                disabled={executing}
+                                className="rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-4 py-2 text-xs font-semibold text-white transition"
+                              >
+                                {executing ? "Starting..." : "▶ Execute"}
+                              </button>
+                            )}
+
                           {(task.status === "Review" ||
                             task.status === "Completed" ||
                             task.status === "Failed") && (
                             <button
+                              type="button"
                               onClick={() =>
                                 setExpandedTaskId(expanded ? null : task.id)
                               }
-                              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50"
+                              className="rounded-xl border border-blue-400/30 bg-blue-500/10 px-4 py-2 text-xs font-medium text-blue-200 hover:bg-blue-500/20 transition"
                             >
-                              {expanded ? "Hide Result" : "View Result"}
+                              {expanded ? "Hide Result" : "📄 View Result"}
                             </button>
+                          )}
+
+                          {task.status !== "In Progress" && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEditing(task)}
+                                className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleDeleteTask(task)}
+                                className="rounded-xl border border-red-400/20 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10"
+                              >
+                                Delete
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
 
                       {/* EXECUTION TIMESTAMPS */}
-
                       {(task.started_at || task.completed_at) && (
-                        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-gray-100 pt-4 text-xs text-gray-400">
+                        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-white/10 pt-3 text-[11px] text-slate-500">
                           {task.started_at && (
                             <span>Started: {formatDate(task.started_at)}</span>
                           )}
 
                           {task.completed_at && (
                             <span>
-                              Last completed: {formatDate(task.completed_at)}
+                              Completed: {formatDate(task.completed_at)}
                             </span>
                           )}
                         </div>
                       )}
 
-                      {/* AI AGENT RESULT */}
-
+                      {/* AI AGENT RESULT (MARKDOWN) */}
                       {expanded && (
-                        <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                          <h4 className="mb-3 font-semibold">
-                            AI Agent Result
-                          </h4>
-
-                          {task.result ? (
-                            <div className="whitespace-pre-wrap break-words text-sm leading-7 text-gray-700">
-                              {task.result}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-500">
-                              Belum ada hasil pekerjaan yang tersimpan.
-                            </p>
-                          )}
-                        </div>
+                        task.result ? (
+                          <MarkdownDeliverable
+                            content={task.result}
+                            title={task.title}
+                            agentName={getAgentName(task.assigned_agent)}
+                            completedAt={formatDate(task.completed_at)}
+                            taskId={task.id}
+                          />
+                        ) : (
+                          <div className="mt-5 rounded-xl border border-white/10 bg-[#0b1020] p-5 text-xs text-slate-500">
+                            Belum ada hasil pekerjaan yang tersimpan.
+                          </div>
+                        )
                       )}
 
                       {/* FOUNDER REVIEW */}
-
                       {task.status === "Review" && (
-                        <div className="mt-5 border-t border-gray-100 pt-5">
-                          <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
-                            <h4 className="font-semibold text-purple-900">
-                              Founder Review Required
+                        <div className="mt-5 border-t border-white/10 pt-5">
+                          <div className="rounded-xl border border-purple-400/30 bg-purple-500/10 p-4">
+                            <h4 className="text-sm font-semibold text-purple-200">
+                              🟣 Founder Review Required
                             </h4>
 
-                            <p className="mt-1 text-sm text-purple-700">
+                            <p className="mt-1 text-xs text-purple-300/80">
                               Periksa hasil pekerjaan AI Agent sebelum
-                              menyelesaikan task.
+                              menyetujui atau meminta revisi.
                             </p>
 
                             {/* APPROVAL NOTE FORM */}
-
                             {approvalTaskId === task.id && (
                               <div className="mt-4 space-y-3">
                                 <div>
-                                  <label className="block text-sm font-semibold text-green-900">
-                                    Catatan Approval Founder
+                                  <label className="block text-xs font-semibold text-green-300">
+                                    Catatan Approval Founder (Opsional)
                                   </label>
 
-                                  <p className="mt-1 text-xs text-green-700">
+                                  <p className="mt-0.5 text-[11px] text-slate-400">
                                     Catatan ini akan disimpan dalam Activity
-                                    Log. Boleh dikosongkan jika tidak ada
-                                    catatan.
+                                    Log.
                                   </p>
                                 </div>
 
@@ -839,22 +1184,23 @@ export default function TasksPage() {
                                   onChange={(event) =>
                                     setApprovalFeedback(event.target.value)
                                   }
-                                  rows={4}
-                                  placeholder="Contoh: Disetujui dengan catatan. Lengkapi analisis Finance & Administrasi serta prioritas otomatisasi berdasarkan dampak bisnis..."
-                                  className="w-full rounded-lg border border-green-300 bg-white p-3 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                                  rows={3}
+                                  placeholder="Contoh: Disetujui. Lanjutkan ke tahap implementasi..."
+                                  className="w-full rounded-xl border border-green-400/30 bg-[#0b1020] p-3 text-xs text-white outline-none focus:border-green-400"
                                 />
 
                                 <div className="flex flex-wrap gap-2">
                                   <button
+                                    type="button"
                                     onClick={() =>
-                                      handleReview(
+                                      void handleReview(
                                         task.id,
                                         "approve",
                                         approvalFeedback,
                                       )
                                     }
                                     disabled={reviewing}
-                                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-500 disabled:opacity-50"
                                   >
                                     {reviewing
                                       ? "Saving Approval..."
@@ -862,12 +1208,13 @@ export default function TasksPage() {
                                   </button>
 
                                   <button
+                                    type="button"
                                     onClick={() => {
                                       setApprovalTaskId(null);
                                       setApprovalFeedback("");
                                     }}
                                     disabled={reviewing}
-                                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                                    className="rounded-lg border border-white/10 px-4 py-2 text-xs text-slate-300 hover:bg-white/5"
                                   >
                                     Batal
                                   </button>
@@ -876,11 +1223,10 @@ export default function TasksPage() {
                             )}
 
                             {/* REVISION FORM */}
-
                             {revisionTaskId === task.id && (
                               <div className="mt-4 space-y-3">
-                                <label className="block text-sm font-medium text-purple-900">
-                                  Revision Feedback
+                                <label className="block text-xs font-semibold text-purple-200">
+                                  Instruksi Revisi untuk AI Agent *
                                 </label>
 
                                 <textarea
@@ -888,46 +1234,50 @@ export default function TasksPage() {
                                   onChange={(event) =>
                                     setRevisionFeedback(event.target.value)
                                   }
-                                  rows={4}
-                                  placeholder="Jelaskan bagian yang perlu diperbaiki..."
-                                  className="w-full rounded-lg border border-purple-200 bg-white p-3 text-sm outline-none focus:border-purple-500"
+                                  rows={3}
+                                  placeholder="Jelaskan bagian yang perlu diperbaiki atau dilengkapi oleh AI Agent..."
+                                  className="w-full rounded-xl border border-purple-400/30 bg-[#0b1020] p-3 text-xs text-white outline-none focus:border-purple-400"
                                 />
 
                                 <div className="flex flex-wrap gap-2">
                                   <button
+                                    type="button"
                                     onClick={() =>
-                                      handleReview(
+                                      void handleReview(
                                         task.id,
                                         "revise",
                                         revisionFeedback,
                                       )
                                     }
                                     disabled={reviewing}
-                                    className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700 disabled:opacity-50"
+                                    className="rounded-lg bg-purple-600 px-4 py-2 text-xs font-semibold text-white hover:bg-purple-500 disabled:opacity-50"
                                   >
-                                    {reviewing ? "Sending..." : "Send Revision"}
+                                    {reviewing
+                                      ? "Sending..."
+                                      : "↻ Kirim Revisi & Jalankan Ulang"}
                                   </button>
 
                                   <button
+                                    type="button"
                                     onClick={() => {
                                       setRevisionTaskId(null);
                                       setRevisionFeedback("");
                                     }}
                                     disabled={reviewing}
-                                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
+                                    className="rounded-lg border border-white/10 px-4 py-2 text-xs text-slate-300 hover:bg-white/5"
                                   >
-                                    Cancel
+                                    Batal
                                   </button>
                                 </div>
                               </div>
                             )}
 
                             {/* REVIEW ACTION BUTTONS */}
-
                             {approvalTaskId !== task.id &&
                               revisionTaskId !== task.id && (
                                 <div className="mt-4 flex flex-wrap gap-2">
                                   <button
+                                    type="button"
                                     onClick={() => {
                                       setRevisionTaskId(null);
                                       setRevisionFeedback("");
@@ -937,12 +1287,13 @@ export default function TasksPage() {
                                       setMessage("");
                                     }}
                                     disabled={reviewing}
-                                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                                    className="rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-500 disabled:opacity-50"
                                   >
                                     ✓ Approve Result
                                   </button>
 
                                   <button
+                                    type="button"
                                     onClick={() => {
                                       setApprovalTaskId(null);
                                       setApprovalFeedback("");
@@ -952,7 +1303,7 @@ export default function TasksPage() {
                                       setMessage("");
                                     }}
                                     disabled={reviewing}
-                                    className="rounded-lg border border-purple-300 bg-white px-4 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-100 disabled:opacity-50"
+                                    className="rounded-lg border border-purple-400/40 bg-purple-500/10 px-4 py-2 text-xs font-semibold text-purple-200 hover:bg-purple-500/20 disabled:opacity-50"
                                   >
                                     ↻ Request Revision
                                   </button>
@@ -963,9 +1314,8 @@ export default function TasksPage() {
                       )}
 
                       {/* COMPLETED */}
-
                       {task.status === "Completed" && (
-                        <div className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">
+                        <div className="mt-4 rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-xs text-green-300">
                           ✓ Hasil pekerjaan telah disetujui Founder.
                         </div>
                       )}
@@ -978,12 +1328,11 @@ export default function TasksPage() {
         </section>
 
         {/* FOOTER */}
-
-        <footer className="border-t border-gray-200 py-5 text-center text-xs text-gray-400">
-          Solusi Macro Virtual HQ · Task Management · Auto refresh every 5
-          seconds
+        <footer className="border-t border-white/10 py-5 text-center text-xs text-slate-500">
+          Solusi Macro Virtual HQ · Task Management · Auto refresh setiap 5
+          detik
         </footer>
       </div>
-    </main>
+    </section>
   );
 }

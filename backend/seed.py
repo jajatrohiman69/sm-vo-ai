@@ -50,6 +50,13 @@ agents = [
         "department": "Quality",
         "status": "Standby",
         "description": "Memeriksa kualitas hasil kerja dan menyiapkan dokumentasi."
+    },
+    {
+        "name": "Social Media Specialist",
+        "role": "Omnichannel Content & Growth",
+        "department": "Marketing",
+        "status": "Online",
+        "description": "Merancang konten dan kampanye untuk Facebook Page, Instagram, YouTube, TikTok, dan Threads."
     }
 ]
 

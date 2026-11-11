@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { API_URL } from "@/lib/api";
 
@@ -157,25 +156,16 @@ export default function AgentsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0b1020] p-6 text-white md:p-10">
+    <section className="flex-1 min-w-0 p-6 md:p-10">
       <div className="mx-auto max-w-7xl">
         <header className="mb-8">
-          <p className="text-sm text-slate-400">SOLUSI MACRO / AI AGENTS</p>
+          <p className="text-xs font-semibold tracking-widest text-blue-400">
+            SOLUSI MACRO / AI AGENTS
+          </p>
           <h1 className="mt-2 text-3xl font-bold">Agent Management</h1>
-          <p className="mt-2 text-slate-400">
+          <p className="mt-2 text-sm text-slate-400">
             Kelola profil dan ketersediaan specialist di Virtual HQ.
           </p>
-          <nav className="mt-5 flex flex-wrap gap-2 text-sm">
-            <Link className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 hover:bg-white/5" href="/">
-              Overview
-            </Link>
-            <Link className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 hover:bg-white/5" href="/projects">
-              Projects
-            </Link>
-            <Link className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 hover:bg-white/5" href="/tasks">
-              Tasks
-            </Link>
-          </nav>
         </header>
 
         {error && (
@@ -331,6 +321,6 @@ export default function AgentsPage() {
           </section>
         </div>
       </div>
-    </main>
+    </section>
   );
 }
