@@ -43,6 +43,8 @@ from ai_service import (
     generate_social_calendar,
     refine_social_platform_content,
     analyze_and_replicate_winning_posts,
+    AVAILABLE_MODELS,
+    resolve_ai_model,
 )
 from social_service import (
     verify_facebook,
