@@ -1,0 +1,336 @@
+"use client";
+
+import Link from "next/link";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { API_URL } from "@/lib/api";
+
+type Agent = {
+  id: number;
+  name: string;
+  role: string;
+  department: string;
+  status: string;
+  description: string | null;
+};
+
+type AgentForm = Omit<Agent, "id" | "description"> & { description: string };
+
+const EMPTY_FORM: AgentForm = {
+  name: "",
+  role: "",
+  department: "",
+  status: "Standby",
+  description: "",
+};
+
+export default function AgentsPage() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [form, setForm] = useState<AgentForm>(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const loadAgents = useCallback(async () => {
+    const response = await fetch(`${API_URL}/agents`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Gagal memuat daftar agent.");
+    }
+
+    setAgents(data);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch(`${API_URL}/agents`)
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Gagal memuat daftar agent.");
+        }
+        if (active) setAgents(data);
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Tidak dapat memuat daftar agent.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function startEditing(agent: Agent) {
+    setEditingId(agent.id);
+    setForm({
+      name: agent.name,
+      role: agent.role,
+      department: agent.department,
+      status: agent.status,
+      description: agent.description || "",
+    });
+    setError("");
+    setMessage("");
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(
+        editingId
+          ? `${API_URL}/agents/${editingId}`
+          : `${API_URL}/agents`,
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...form,
+            name: form.name.trim(),
+            role: form.role.trim(),
+            department: form.department.trim(),
+            description: form.description.trim() || null,
+          }),
+        },
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Gagal menyimpan agent.");
+      }
+
+      setMessage(editingId ? "Agent berhasil diperbarui." : "Agent berhasil dibuat.");
+      resetForm();
+      await loadAgents();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Gagal menyimpan agent.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteAgent(agent: Agent) {
+    if (!window.confirm(`Hapus agent "${agent.name}"?`)) return;
+
+    try {
+      setError("");
+      setMessage("");
+      const response = await fetch(`${API_URL}/agents/${agent.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Gagal menghapus agent.");
+      }
+
+      if (editingId === agent.id) resetForm();
+      setMessage(data.message || "Agent berhasil dihapus.");
+      await loadAgents();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Gagal menghapus agent.",
+      );
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#0b1020] p-6 text-white md:p-10">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-8">
+          <p className="text-sm text-slate-400">SOLUSI MACRO / AI AGENTS</p>
+          <h1 className="mt-2 text-3xl font-bold">Agent Management</h1>
+          <p className="mt-2 text-slate-400">
+            Kelola profil dan ketersediaan specialist di Virtual HQ.
+          </p>
+          <nav className="mt-5 flex flex-wrap gap-2 text-sm">
+            <Link className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 hover:bg-white/5" href="/">
+              Overview
+            </Link>
+            <Link className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 hover:bg-white/5" href="/projects">
+              Projects
+            </Link>
+            <Link className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 hover:bg-white/5" href="/tasks">
+              Tasks
+            </Link>
+          </nav>
+        </header>
+
+        {error && (
+          <p role="alert" className="mb-5 rounded-xl bg-red-500/10 p-4 text-sm text-red-300">
+            {error}
+          </p>
+        )}
+        {message && (
+          <p role="status" className="mb-5 rounded-xl bg-green-500/10 p-4 text-sm text-green-300">
+            {message}
+          </p>
+        )}
+
+        <div className="grid gap-6 xl:grid-cols-3">
+          <form
+            onSubmit={handleSubmit}
+            className="h-fit rounded-2xl border border-white/10 bg-[#151d32] p-6"
+          >
+            <h2 className="mb-5 text-lg font-semibold">
+              {editingId ? "Edit Agent" : "Add Agent"}
+            </h2>
+            <label className="mb-1 block text-sm text-slate-400" htmlFor="agent-name">
+              Name
+            </label>
+            <input
+              id="agent-name"
+              required
+              maxLength={120}
+              value={form.name}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+              className="mb-4 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+            />
+            <label className="mb-1 block text-sm text-slate-400" htmlFor="agent-role">
+              Role
+            </label>
+            <input
+              id="agent-role"
+              required
+              maxLength={120}
+              value={form.role}
+              onChange={(event) => setForm({ ...form, role: event.target.value })}
+              className="mb-4 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+            />
+            <label className="mb-1 block text-sm text-slate-400" htmlFor="agent-department">
+              Department
+            </label>
+            <input
+              id="agent-department"
+              required
+              maxLength={120}
+              value={form.department}
+              onChange={(event) =>
+                setForm({ ...form, department: event.target.value })
+              }
+              className="mb-4 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+            />
+            <label className="mb-1 block text-sm text-slate-400" htmlFor="agent-status">
+              Availability
+            </label>
+            <select
+              id="agent-status"
+              value={form.status}
+              onChange={(event) => setForm({ ...form, status: event.target.value })}
+              className="mb-4 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+            >
+              <option>Standby</option>
+              <option>Online</option>
+              <option>Offline</option>
+            </select>
+            <label className="mb-1 block text-sm text-slate-400" htmlFor="agent-description">
+              Description
+            </label>
+            <textarea
+              id="agent-description"
+              maxLength={10000}
+              rows={4}
+              value={form.description || ""}
+              onChange={(event) =>
+                setForm({ ...form, description: event.target.value })
+              }
+              className="mb-5 w-full rounded-lg border border-white/10 bg-[#0b1020] p-3 text-sm"
+            />
+            <button
+              disabled={saving}
+              className="w-full rounded-lg bg-blue-600 p-3 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50"
+            >
+              {saving ? "Saving..." : editingId ? "Save Changes" : "Create Agent"}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="mt-2 w-full rounded-lg border border-white/10 p-3 text-sm text-slate-300 hover:bg-white/5"
+              >
+                Cancel
+              </button>
+            )}
+          </form>
+
+          <section className="xl:col-span-2 rounded-2xl border border-white/10 bg-[#151d32] p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">AI Team</h2>
+              <span className="text-xs text-slate-400">{agents.length} agents</span>
+            </div>
+            {loading ? (
+              <p className="text-sm text-slate-400">Loading agents...</p>
+            ) : agents.length === 0 ? (
+              <p className="text-sm text-slate-400">Belum ada agent.</p>
+            ) : (
+              <div className="space-y-3">
+                {agents.map((agent) => (
+                  <article
+                    key={agent.id}
+                    className="flex flex-col justify-between gap-4 rounded-xl border border-white/10 p-4 sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold">{agent.name}</h3>
+                        <span className="rounded-full bg-blue-400/10 px-2 py-1 text-xs text-blue-300">
+                          {agent.status}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-400">
+                        {agent.role} · {agent.department}
+                      </p>
+                      {agent.description && (
+                        <p className="mt-2 text-xs text-slate-500">
+                          {agent.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        onClick={() => startEditing(agent)}
+                        className="rounded-lg border border-white/10 px-3 py-2 text-xs hover:bg-white/5"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteAgent(agent)}
+                        className="rounded-lg border border-red-400/20 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            <p className="mt-5 text-xs text-slate-500">
+              Agent yang masih dipakai task atau Task Plan tidak dapat dihapus.
+            </p>
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}
