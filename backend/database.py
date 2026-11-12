@@ -1,7 +1,10 @@
-from sqlalchemy import create_engine
+from pathlib import Path
+
+from sqlalchemy import URL, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "sqlite:///./vhq.db"
+DATABASE_PATH = Path(__file__).resolve().parent / "vhq.db"
+DATABASE_URL = URL.create("sqlite", database=str(DATABASE_PATH))
 
 engine = create_engine(
     DATABASE_URL,

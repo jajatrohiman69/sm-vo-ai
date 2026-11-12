@@ -26,8 +26,7 @@ type ProviderConfig = {
 
 export default function AISettingsPage() {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
-  const [activeProviderId, setActiveProviderId] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loadingProviders, setLoadingProviders] = useState(true);
   const [toastMessage, setToastMessage] = useState<string>("");
   const [toastType, setToastType] = useState<"success" | "error">("success");
 
@@ -63,34 +62,6 @@ export default function AISettingsPage() {
     setTimeout(() => setToastMessage(""), 5000);
   }
 
-  async function loadProviders() {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/ai/providers`);
-      if (!res.ok) throw new Error("Gagal mengambil daftar provider AI.");
-      const data = await res.json();
-      setProviders(data.providers || []);
-      setActiveProviderId(data.active_provider_id || "");
-
-      // Select active provider by default
-      const current = (data.providers || []).find(
-        (p: ProviderConfig) => p.is_active || p.provider_id === data.active_provider_id
-      ) || data.providers?.[0] || null;
-
-      if (current) {
-        selectForEdit(current);
-      }
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : "Gagal memuat provider.", "error");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadProviders();
-  }, []);
-
   function selectForEdit(p: ProviderConfig) {
     setSelectedProvider(p);
     setEditName(p.name);
@@ -99,6 +70,62 @@ export default function AISettingsPage() {
     setEditDefaultModel(p.default_model);
     setEditModelsJson(p.custom_models_json || "");
     setTestResult(null);
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchInitialProviders() {
+      try {
+        const res = await fetch(`${API_URL}/ai/providers`);
+        if (!res.ok) throw new Error("Gagal mengambil daftar provider AI.");
+        const data = await res.json();
+        if (!Array.isArray(data.providers)) {
+          throw new Error("Respons daftar provider AI tidak valid.");
+        }
+        if (!isMounted) return;
+        const list: ProviderConfig[] = data.providers;
+        setProviders(list);
+
+        const current = list.find(
+          (p: ProviderConfig) => p.is_active || p.provider_id === data.active_provider_id
+        ) || list[0] || null;
+
+        if (current) {
+          selectForEdit(current);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        showToast(err instanceof Error ? err.message : "Gagal memuat provider.", "error");
+      } finally {
+        if (isMounted) setLoadingProviders(false);
+      }
+    }
+
+    void fetchInitialProviders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function reloadProviders() {
+    try {
+      const res = await fetch(`${API_URL}/ai/providers`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = data.providers || [];
+      setProviders(list);
+
+      const current = list.find(
+        (p: ProviderConfig) => p.provider_id === (selectedProvider?.provider_id || data.active_provider_id)
+      ) || list[0] || null;
+
+      if (current) {
+        selectForEdit(current);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   async function handleSwitchActive(providerId: string) {
@@ -111,7 +138,7 @@ export default function AISettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Gagal mengaktifkan provider.");
       showToast(`✨ Provider aktif diubah ke: ${data.active_provider?.name}`);
-      await loadProviders();
+      await reloadProviders();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal switch provider.", "error");
     }
@@ -136,7 +163,7 @@ export default function AISettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Gagal menyimpan konfigurasi.");
       showToast(`✅ Konfigurasi ${editName} berhasil disimpan!`);
-      await loadProviders();
+      await reloadProviders();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal menyimpan.", "error");
     } finally {
@@ -207,7 +234,7 @@ export default function AISettingsPage() {
       setNewBaseUrl("https://");
       setNewApiKey("");
       setNewDefaultModel("");
-      await loadProviders();
+      await reloadProviders();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Gagal menambahkan provider.", "error");
     } finally {
@@ -267,12 +294,19 @@ export default function AISettingsPage() {
         <div className="lg:col-span-5 flex flex-col gap-4">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Daftar Provider Terdaftar ({providers.length})
+              {loadingProviders
+                ? "Memuat daftar provider..."
+                : `Daftar Provider Terdaftar (${providers.length})`}
             </h3>
             <span className="text-[10px] text-slate-500">Klik untuk edit/aktifkan</span>
           </div>
 
           <div className="space-y-3">
+            {!loadingProviders && providers.length === 0 && (
+              <div className="rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4 text-xs text-amber-200">
+                Daftar provider kosong atau gagal dimuat. Periksa koneksi backend dan database.
+              </div>
+            )}
             {providers.map((p) => {
               const isSelected = selectedProvider?.provider_id === p.provider_id;
               const isActive = p.is_active;
@@ -419,7 +453,7 @@ export default function AISettingsPage() {
                     API Key / Secret Token
                   </label>
                   <input
-                    type="password"
+                    type="text"
                     value={editApiKey}
                     onChange={(e) => setEditApiKey(e.target.value)}
                     placeholder="sk-xxxx atau bsk_live_xxxx (kosongkan jika tanpa auth/ollama)"
@@ -436,10 +470,11 @@ export default function AISettingsPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          const jsonStr = JSON.stringify(testResult.detected_models, null, 2);
+                          const models = testResult.detected_models || [];
+                          const jsonStr = JSON.stringify(models, null, 2);
                           setEditModelsJson(jsonStr);
-                          if (testResult.detected_models[0]?.id) {
-                            setEditDefaultModel(testResult.detected_models[0].id);
+                          if (models[0]?.id) {
+                            setEditDefaultModel(models[0].id);
                           }
                           showToast("Daftar model otomatis disalin dari hasil deteksi API!");
                         }}
@@ -589,7 +624,7 @@ export default function AISettingsPage() {
                   API Key (Opsional jika tanpa autentikasi)
                 </label>
                 <input
-                  type="password"
+                  type="text"
                   placeholder="sk-xxxx atau bsk_live_xxxx"
                   value={newApiKey}
                   onChange={(e) => setNewApiKey(e.target.value)}
