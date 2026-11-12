@@ -195,35 +195,6 @@ solusi-macro-vhq/
 ├── .gitignore                    # Proteksi berkas sensitif, db, dan venv
 └── README.md                     # Dokumentasi panduan proyek
 ```
-
----
-
-## 📤 Panduan Push ke GitHub Repository
-
-Jika Anda ingin menyimpan atau mempublikasikan proyek ini ke repositori GitHub pribadi/organisasi:
-
-1. **Pastikan status git bersih dan file sensitif tidak ter-track:**
-   ```bash
-   git status
-   ```
-
-2. **Tambahkan perubahan dan buat commit:**
-   ```bash
-   git add .
-   git commit -m "feat: complete Solusi Macro VHQ with 3D Pixar diorama, multi-provider AI hub, and Excel VBA generator"
-   ```
-
-3. **Hubungkan remote GitHub repository Anda (jika belum ada):**
-   ```bash
-   git remote add origin https://github.com/<username-anda>/<nama-repo>.git
-   ```
-
-4. **Kirim commit ke GitHub:**
-   ```bash
-   git branch -M main
-   git push -u origin main
-   ```
-
 ---
 
 ## 📜 Lisensi & Kontributor
