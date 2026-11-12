@@ -11,6 +11,7 @@ from excel_vba_service import (
 
 load_dotenv()
 
+AI_PROVIDER = os.getenv("VHQ_AI_PROVIDER", "octa").strip().lower()
 OCTA_API_KEY = os.getenv("OCTA_API_KEY")
 OCTA_BASE_URL = os.getenv(
     "OCTA_BASE_URL",
@@ -20,8 +21,17 @@ OCTA_MODEL = os.getenv(
     "OCTA_MODEL",
     "claude-sonnet-5"
 )
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_BASE_URL = os.getenv(
+    "GEMINI_BASE_URL",
+    "https://generativelanguage.googleapis.com/v1beta/openai/",
+)
+GEMINI_MODEL = (
+    os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    or "gemini-2.5-flash"
+)
 
-AVAILABLE_MODELS = [
+OCTA_AVAILABLE_MODELS = [
     {
         "id": "auto",
         "label": "⚡ Smart Multi-Model (Optimal per Task)",
@@ -62,6 +72,23 @@ VALID_MODEL_IDS = {
     "gpt-5.4-nano",
 }
 
+if AI_PROVIDER == "gemini":
+    AVAILABLE_MODELS = [
+        {
+            "id": "auto",
+            "label": "⚡ Auto (Gemini API)",
+            "description": f"Gunakan model Gemini {GEMINI_MODEL} untuk semua tugas.",
+        },
+        {
+            "id": "gemini-direct",
+            "label": f"🧠 Gemini ({GEMINI_MODEL})",
+            "description": "Gunakan API Gemini langsung dari Google.",
+        },
+    ]
+    VALID_MODEL_IDS.add("gemini-direct")
+else:
+    AVAILABLE_MODELS = OCTA_AVAILABLE_MODELS
+
 TASK_OPTIMAL_MODEL_MAP = {
     # 1. Claude Opus 5.5 -> Strategi level CEO & Replikasi Copywriting Viral berbasis histori engagement
     "winning_copy": "claude-opus-5-5",
@@ -92,6 +119,9 @@ def resolve_ai_model(
     - Jika Founder memilih model spesifik di UI, gunakan model tersebut.
     - Jika mode 'auto' (Smart Multi-Model), arahkan ke model paling optimal untuk task_type.
     """
+    if AI_PROVIDER == "gemini":
+        return GEMINI_MODEL
+
     if requested_model and requested_model.strip() in VALID_MODEL_IDS:
         return requested_model.strip()
 
@@ -136,15 +166,32 @@ def get_value(data, key, default=None):
 # ============================================================
 
 def get_ai_client():
-    if not OCTA_API_KEY:
-        raise RuntimeError(
-            "OCTA_API_KEY belum diatur di file .env"
+    if AI_PROVIDER == "gemini":
+        if not GEMINI_API_KEY:
+            raise RuntimeError(
+                "GEMINI_API_KEY belum diatur di file backend/.env"
+            )
+
+        return OpenAI(
+            api_key=GEMINI_API_KEY,
+            base_url=GEMINI_BASE_URL,
+            timeout=95.0,
         )
 
-    return OpenAI(
-        api_key=OCTA_API_KEY,
-        base_url=OCTA_BASE_URL,
-        timeout=95.0,
+    if AI_PROVIDER == "octa":
+        if not OCTA_API_KEY:
+            raise RuntimeError(
+                "OCTA_API_KEY belum diatur di file .env"
+            )
+
+        return OpenAI(
+            api_key=OCTA_API_KEY,
+            base_url=OCTA_BASE_URL,
+            timeout=95.0,
+        )
+
+    raise RuntimeError(
+        "VHQ_AI_PROVIDER harus bernilai 'octa' atau 'gemini'"
     )
 
 
@@ -155,22 +202,23 @@ def _chat_completion_with_fallback(
     temperature: float = 0.5,
 ) -> tuple[str, str]:
     """
-    Menjalankan chat completion pada model utama yang dipilih.
-    Jika model menggunakan reasoning token internal (seperti gemini-3.1-pro-preview),
-    alokasikan batas token yang memadai. Jika terjadi gangguan jaringan/timeout pada model utama,
-    otomatis failover ke claude-sonnet-5 lalu gpt-5.4-nano.
+    Menjalankan completion melalui provider yang aktif. OCTA menggunakan rantai
+    failover multi-model, sedangkan Gemini API memakai model yang dikonfigurasi.
     """
     client = get_ai_client()
-    fallback_chain = [model]
-    for fb in ("claude-sonnet-5", "deepseek-v4.1-flash", "gpt-5.4-nano"):
-        if fb not in fallback_chain:
-            fallback_chain.append(fb)
+    if AI_PROVIDER == "gemini":
+        fallback_chain = [GEMINI_MODEL]
+    else:
+        fallback_chain = [model]
+        for fb in ("claude-sonnet-5", "deepseek-v4.1-flash", "gpt-5.4-nano"):
+            if fb not in fallback_chain:
+                fallback_chain.append(fb)
 
     last_error = None
     for candidate_model in fallback_chain:
         effective_max_tokens = (
             max(max_tokens, 5000)
-            if candidate_model == "gemini-3.1-pro-preview"
+            if candidate_model in {"gemini-3.1-pro-preview", "gemini-2.5-pro"}
             else max_tokens
         )
         try:
@@ -293,6 +341,19 @@ ATURAN:
 8. Jangan mengklaim task sudah disimpan atau dijalankan.
 9. Jika instruksi tidak cukup jelas, tetap buat usulan yang masuk akal.
 10. Jelaskan asumsi dalam field notes.
+11. Urutkan tasks sesuai alur kerja: pahami kebutuhan dan data, rancang solusi,
+    implementasikan, lalu uji dan dokumentasikan hasil. Lewati tahap yang tidak
+    relevan dan jangan membuat task hanya untuk mengisi tahap.
+12. Eksekusi mengikuti urutan array tasks; setiap agent menerima hasil task
+    sebelumnya. Tulis dependensi dan handoff yang penting di description.
+13. Untuk pekerjaan implementasi, tutup dengan validasi/QA sebelum hasil akhir
+    diserahkan kepada Founder untuk ditinjau.
+14. Pilih agent menurut keahlian dan deliverable, bukan hanya kemiripan judul.
+    Gunakan Business Analyst untuk kebutuhan/proses, Excel Engineer untuk
+    spreadsheet, Automation Engineer untuk workflow, Dashboard Analyst untuk
+    visualisasi/reporting, QA & Documentation untuk pengujian/dokumentasi,
+    Secretary untuk administrasi/koordinasi, dan Social Media Specialist
+    hanya untuk kebutuhan marketing/konten.
 
 OUTPUT:
 Kembalikan JSON valid saja.

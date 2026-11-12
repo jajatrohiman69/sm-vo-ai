@@ -610,6 +610,70 @@ export default function TaskPlannerPage() {
           </div>
         )}
 
+        <section
+          aria-labelledby="business-flow-title"
+          className="mb-8 rounded-2xl border border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 via-[#131316] to-rose-500/5 p-6"
+        >
+          <div className="mb-5">
+            <p className="text-xs font-semibold tracking-widest text-indigo-300">
+              ALUR KERJA PROYEK
+            </p>
+            <h2 id="business-flow-title" className="mt-2 text-lg font-semibold">
+              Dari brief sampai hasil siap ditinjau
+            </h2>
+            <p className="mt-1 text-sm text-slate-400">
+              AI menyusun usulan; Founder tetap memegang persetujuan dan review
+              akhir.
+            </p>
+          </div>
+          <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              {
+                title: "1. Brief",
+                detail: "Buat project dan jelaskan tujuan, data, serta batasan.",
+                owner: "Founder",
+              },
+              {
+                title: "2. Analisis",
+                detail: "Business Analyst memetakan kebutuhan dan proses.",
+                owner: "Analisis",
+              },
+              {
+                title: "3. Rencana",
+                detail: "AI CEO membagi pekerjaan dan memilih specialist.",
+                owner: "Usulan untuk disetujui",
+              },
+              {
+                title: "4. Eksekusi",
+                detail:
+                  "Setelah disetujui, task berjalan berurutan; hasil sebelumnya diteruskan.",
+                owner: "Specialist Agents",
+              },
+              {
+                title: "5. Review",
+                detail:
+                  "Periksa output task berstatus Review dan minta revisi bila perlu.",
+                owner: "Founder",
+              },
+            ].map((step) => (
+              <li
+                key={step.title}
+                className="rounded-xl border border-white/10 bg-[#09090b]/70 p-4"
+              >
+                <h3 className="text-sm font-semibold text-slate-100">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                  {step.detail}
+                </p>
+                <p className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-indigo-300">
+                  {step.owner}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
         {/* GENERATOR */}
         <section className="bg-[#131316] border border-white/10 rounded-2xl p-6 mb-8">
           <div className="flex items-center gap-3 mb-5">
@@ -884,10 +948,10 @@ export default function TaskPlannerPage() {
                 {/* TASK BREAKDOWN HEADER */}
                 <div className="flex justify-between items-center mb-4">
                   <div>
-                    <h3 className="font-semibold">Task Breakdown</h3>
+                    <h3 className="font-semibold">Urutan Pengerjaan</h3>
                     <p className="text-xs text-slate-500">
-                      {selectedPlan.items.length} item pekerjaan dalam rencana
-                      ini
+                      {selectedPlan.items.length} task · dieksekusi berurutan;
+                      hasil task sebelumnya menjadi konteks task berikutnya.
                     </p>
                   </div>
 
@@ -1093,7 +1157,7 @@ export default function TaskPlannerPage() {
                     >
                       {actionLoading
                         ? "Processing..."
-                        : `✓ Approve & Execute Plan (${selectedPlan.items.length} Tasks)`}
+                        : `✓ Setujui & Jalankan Berurutan (${selectedPlan.items.length} Task)`}
                     </button>
 
                     <button
@@ -1109,8 +1173,9 @@ export default function TaskPlannerPage() {
 
                 {selectedPlan.status === "Approved" && (
                   <div className="mt-6 rounded-xl bg-green-500/10 border border-green-400/20 p-4 text-sm text-green-300">
-                    ✓ Rencana telah disetujui. Seluruh task sudah dibuat dan
-                    dieksekusi secara otomatis oleh AI Specialist Agents.
+                    ✓ Rencana disetujui. Task dijalankan berurutan oleh AI
+                    Specialist Agents; hasil yang selesai menunggu review Founder
+                    di Papan Tugas.
                   </div>
                 )}
 

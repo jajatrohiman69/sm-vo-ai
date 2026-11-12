@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { API_URL } from "@/lib/api";
@@ -124,12 +125,16 @@ export default function VhqShell({
       {/* MOBILE HEADER */}
       <header className="md:hidden flex items-center justify-between border-b border-white/10 bg-[#131316] px-4 py-3 sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center font-extrabold text-sm">
-            SM
-          </div>
+          <Image
+            src="/solusi-macro-logo.png"
+            alt="Logo Solusi Macro"
+            width={40}
+            height={40}
+            className="h-8 w-8 rounded-lg object-cover"
+          />
           <div>
             <span className="text-sm font-bold tracking-wide block">
-              SolusiMacro
+              Solusi Macro
             </span>
             <span className="text-[10px] text-slate-400 block">
               Virtual Office · AI Team
@@ -182,12 +187,16 @@ export default function VhqShell({
         <div className="space-y-4">
           {/* BRAND HEADER */}
           <Link href="/" className="flex items-center gap-3 px-1">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center font-extrabold text-base shadow-lg shadow-indigo-500/20">
-              SM
-            </div>
+            <Image
+              src="/solusi-macro-logo.png"
+              alt="Logo Solusi Macro"
+              width={48}
+              height={48}
+              className="h-10 w-10 rounded-lg object-cover"
+            />
             <div>
               <h1 className="text-base font-bold tracking-tight text-white leading-tight">
-                SolusiMacro
+                Solusi Macro
               </h1>
               <p className="text-[11px] text-slate-400">
                 Virtual Office · AI Team

@@ -6,6 +6,22 @@ The frontend proxies API requests through Next.js to `http://127.0.0.1:8000`
 by default. Set `VHQ_API_URL` in the frontend environment to use another
 backend URL.
 
+## Gemini API
+
+To use a Google Gemini API key directly, set these values in `backend/.env`:
+
+```env
+VHQ_AI_PROVIDER=gemini
+GEMINI_API_KEY=your-google-ai-studio-api-key
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Keep the key private and restart the backend after changing the file. The
+backend defaults to `gemini-2.5-flash`; set `GEMINI_MODEL` to another model
+available to your key if needed. When this provider is active, chat, task
+planning, agent tasks, and social content use the configured Gemini model.
+OCTA remains the default provider when `VHQ_AI_PROVIDER` is not set.
+
 ## Founder login
 
 Copy `../backend/.env.example` to `../backend/.env` and set a unique Founder password

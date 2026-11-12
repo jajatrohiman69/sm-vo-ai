@@ -22,6 +22,41 @@ const EMPTY_FORM: AgentForm = {
   description: "",
 };
 
+const BUSINESS_CAPABILITIES = [
+  {
+    label: "Koordinasi & perencanaan",
+    agents: ["ai ceo"],
+  },
+  {
+    label: "Analisis kebutuhan bisnis",
+    agents: ["business analyst"],
+  },
+  {
+    label: "Solusi Excel & spreadsheet",
+    agents: ["excel engineer"],
+  },
+  {
+    label: "Otomasi proses",
+    agents: ["automation engineer"],
+  },
+  {
+    label: "Dashboard & reporting",
+    agents: ["dashboard analyst"],
+  },
+  {
+    label: "QA & dokumentasi",
+    agents: ["qa & documentation", "quality assurance"],
+  },
+  {
+    label: "Administrasi & PMO",
+    agents: ["secretary", "administration & pmo"],
+  },
+  {
+    label: "Konten & pemasaran",
+    agents: ["social media specialist", "omnichannel content"],
+  },
+];
+
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [form, setForm] = useState<AgentForm>(EMPTY_FORM);
@@ -30,6 +65,14 @@ export default function AgentsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const coveredCapabilities = BUSINESS_CAPABILITIES.map((capability) => ({
+    ...capability,
+    covered: agents.some((agent) => {
+      const profile =
+        `${agent.name} ${agent.role} ${agent.department}`.toLowerCase();
+      return capability.agents.some((keyword) => profile.includes(keyword));
+    }),
+  }));
 
   const loadAgents = useCallback(async () => {
     const response = await fetch(`${API_URL}/agents`);
@@ -178,6 +221,81 @@ export default function AgentsPage() {
             {message}
           </p>
         )}
+
+        <section
+          aria-labelledby="business-fit-title"
+          className="mb-6 rounded-2xl border border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 to-[#131316] p-6"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold tracking-widest text-indigo-300">
+                KECOCOKAN DENGAN PROFIL BISNIS
+              </p>
+              <h2 id="business-fit-title" className="mt-2 text-lg font-semibold">
+                Tim saat ini cocok untuk delivery layanan inti
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-400">
+                Cakupan kuat di analisis, Excel, otomasi, dashboard, QA, dan
+                konten. Ini sesuai dengan layanan Solusi Macro yang tercatat di
+                AI CEO.
+              </p>
+            </div>
+            <span className="text-xs text-slate-400">
+              {loading
+                ? "Memuat cakupan..."
+                : agents.length === 0
+                  ? "Cakupan belum tersedia"
+                  : `${coveredCapabilities.filter((item) => item.covered).length}/${coveredCapabilities.length} kapabilitas tercakup`}
+            </span>
+          </div>
+
+          {loading ? (
+            <p className="mt-4 text-xs text-slate-500">
+              Memuat agent untuk memetakan cakupan bisnis...
+            </p>
+          ) : agents.length === 0 ? (
+            <p className="mt-4 text-xs text-slate-500">
+              Cakupan belum dapat dihitung karena daftar agent kosong atau
+              belum berhasil dimuat.
+            </p>
+          ) : (
+            <>
+              <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {coveredCapabilities.map((capability) => (
+                  <li
+                    key={capability.label}
+                    className="flex items-center gap-2 rounded-lg border border-white/5 bg-[#09090b]/60 px-3 py-2.5 text-xs"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={
+                        capability.covered
+                          ? "text-emerald-300"
+                          : "text-slate-500"
+                      }
+                    >
+                      {capability.covered ? "✓" : "—"}
+                    </span>
+                    <span
+                      className={
+                        capability.covered ? "text-slate-200" : "text-slate-500"
+                      }
+                    >
+                      {capability.label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <p className="mt-4 rounded-lg border border-amber-400/15 bg-amber-400/5 px-3 py-2.5 text-xs leading-relaxed text-amber-100/80">
+                Celah yang belum punya owner khusus: sales/CRM dan onboarding
+                atau customer success. Tambahkan agent untuk area ini jika
+                targetnya mencakup akuisisi dan pendampingan klien, bukan
+                delivery proyek saja.
+              </p>
+            </>
+          )}
+        </section>
 
         <div className="grid gap-6 xl:grid-cols-3">
           <form

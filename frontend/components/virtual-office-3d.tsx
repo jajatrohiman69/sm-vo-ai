@@ -289,32 +289,6 @@ function drawWood(ctx: CanvasRenderingContext2D, s: number) {
   }
 }
 
-function drawTile(ctx: CanvasRenderingContext2D, s: number) {
-  const r = rng(21);
-  const n = 4;
-  const t = s / n;
-  for (let y = 0; y < n; y++) {
-    for (let x = 0; x < n; x++) {
-      ctx.fillStyle = `hsl(38, 14%, ${86 + r() * 6}%)`;
-      ctx.fillRect(x * t, y * t, t, t);
-    }
-  }
-  for (let i = 0; i < 260; i++) {
-    ctx.fillStyle = `rgba(110,100,85,${0.04 + r() * 0.06})`;
-    ctx.fillRect(r() * s, r() * s, 1.5, 1.5);
-  }
-  ctx.strokeStyle = "rgba(120,110,95,0.28)";
-  ctx.lineWidth = 2;
-  for (let i = 0; i <= n; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * t, 0);
-    ctx.lineTo(i * t, s);
-    ctx.moveTo(0, i * t);
-    ctx.lineTo(s, i * t);
-    ctx.stroke();
-  }
-}
-
 /* ------------------------------------------------------------------ */
 /* Kerangka karakter                                                   */
 /* ------------------------------------------------------------------ */
@@ -323,6 +297,11 @@ type CharacterRig = {
   group: THREE.Group;
   body: THREE.Group;
   head: THREE.Group;
+  nameTag?: {
+    canvas: HTMLCanvasElement;
+    texture: THREE.CanvasTexture;
+    name: string;
+  };
   leftArm: THREE.Group;
   rightArm: THREE.Group;
   leftElbow: THREE.Group;
@@ -667,9 +646,9 @@ export default function VirtualOffice3D({
     scene.environmentIntensity = 0.35;
 
     /* ---------- Cahaya: senja lembut, rim biru dari jendela kota, lampu hangat ---------- */
-    scene.add(new THREE.HemisphereLight(0xf3e8ff, 0x8a7060, 0.8));
+    scene.add(new THREE.HemisphereLight(0xf7f0ff, 0x776a88, 0.9));
 
-    const sun = new THREE.DirectionalLight(0xffe6c4, 1.5);
+    const sun = new THREE.DirectionalLight(0xffe5d2, 1.45);
     sun.position.set(9, 15, 10);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1536, 1536);
@@ -685,7 +664,7 @@ export default function VirtualOffice3D({
     sun.shadow.radius = 3;
     scene.add(sun);
 
-    const rimLight = new THREE.DirectionalLight(0x8fb0ff, 0.55);
+    const rimLight = new THREE.DirectionalLight(0xb9a0ff, 0.65);
     rimLight.position.set(2, 6, -12);
     scene.add(rimLight);
 
@@ -694,7 +673,7 @@ export default function VirtualOffice3D({
       [1.3, -0.2],
       [3.5, 2.4],
     ]) {
-      const p = new THREE.PointLight(0xffd7a3, 10, 8, 2);
+      const p = new THREE.PointLight(0xffc7dc, 9, 8, 2);
       p.position.set(lx, 2.4, lz);
       scene.add(p);
     }
@@ -761,6 +740,30 @@ export default function VirtualOffice3D({
       return m;
     };
 
+    const nameTagTextures: THREE.CanvasTexture[] = [];
+    const drawNameTag = (canvas: HTMLCanvasElement, name: string) => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Unable to draw character name tag");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#f8fafc";
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 18);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#172033";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      let fontSize = 42;
+      ctx.font = `700 ${fontSize}px Arial`;
+      while (ctx.measureText(name).width > canvas.width - 32 && fontSize > 24) {
+        fontSize -= 2;
+        ctx.font = `700 ${fontSize}px Arial`;
+      }
+      ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+    };
+
     const texList: THREE.Texture[] = [];
     const FONT = "'Trebuchet MS','Segoe UI',Arial,sans-serif";
 
@@ -780,33 +783,16 @@ export default function VirtualOffice3D({
       texList.push(t);
       return t;
     };
-    const roundRect = (
-      c: CanvasRenderingContext2D,
-      x: number,
-      y: number,
-      w: number,
-      h: number,
-      r: number,
-    ) => {
-      c.beginPath();
-      c.moveTo(x + r, y);
-      c.arcTo(x + w, y, x + w, y + h, r);
-      c.arcTo(x + w, y + h, x, y + h, r);
-      c.arcTo(x, y + h, x, y, r);
-      c.arcTo(x, y, x + w, y, r);
-      c.closePath();
-    };
-
     /* ---------- Material ---------- */
-    const wallPurple = M(0x43395c, 0.9);
-    const wallPurple2 = M(0x4f4570, 0.9);
-    const darkMetal = M(0x2b2833, 0.45, 0.5);
-    const woodLight = M(0xe9cfa4, 0.55);
-    const woodMid = M(0xc99a63, 0.55);
-    const woodDark = M(0x8a5e3c, 0.6);
-    const navy = M(0x35466e, 0.8);
-    const potTerra = M(0xd98a5f, 0.8);
-    const potWhite = M(0xf1ece4, 0.8);
+    const wallPurple = M(0xf1edfa, 0.9);
+    const wallPurple2 = M(0xe5def2, 0.9);
+    const darkMetal = M(0x39364a, 0.45, 0.5);
+    const woodLight = M(0xe9d9c8, 0.55);
+    const woodMid = M(0xb99578, 0.55);
+    const woodDark = M(0x755b59, 0.6);
+    const navy = M(0x8176a8, 0.8);
+    const potTerra = M(0xd98985, 0.8);
+    const potWhite = M(0xf5f0e9, 0.8);
     const leafA = M(0x62a860, 0.7);
     const leafB = M(0x3f8f58, 0.7);
     const leafC = M(0x86c06a, 0.7);
@@ -818,50 +804,68 @@ export default function VirtualOffice3D({
       depthWrite: false,
     });
     const lampGlow = new THREE.MeshStandardMaterial({
-      color: 0xfff2d6,
-      emissive: 0xffc980,
-      emissiveIntensity: 1.4,
+      color: 0xfff1e5,
+      emissive: 0xffb7d5,
+      emissiveIntensity: 1.6,
     });
 
     /* ---------- Tekstur: logo, kota senja, layar, papan ---------- */
     const logoTex = canvasTex(1024, 512, (c, w, h) => {
       c.clearRect(0, 0, w, h);
-      const mx = 70;
-      const my = 150;
-      const ms = 190;
-      const g = c.createLinearGradient(mx, my, mx + ms, my + ms);
-      g.addColorStop(0, "#4f8cff");
-      g.addColorStop(0.55, "#8b5cff");
-      g.addColorStop(1, "#ff5fb0");
-      c.shadowColor = "rgba(140,100,255,0.85)";
-      c.shadowBlur = 40;
-      c.fillStyle = g;
-      roundRect(c, mx, my, ms, ms, 52);
-      c.fill();
-      c.shadowBlur = 0;
       c.fillStyle = "#fff";
-      c.font = `900 130px ${FONT}`;
-      c.textAlign = "center";
-      c.textBaseline = "middle";
-      c.fillText("V", mx + ms / 2, my + ms / 2 + 6);
       c.textAlign = "left";
-      c.shadowColor = "rgba(150,120,255,0.9)";
+      c.textBaseline = "middle";
+      c.shadowColor = "rgba(20,220,180,0.45)";
       c.shadowBlur = 24;
-      c.font = `700 84px ${FONT}`;
-      c.fillText("Virtual", 300, 190);
-      c.fillText("Office AI", 300, 290);
-      c.shadowBlur = 10;
-      c.fillStyle = "#e9defa";
-      c.font = `italic 400 44px ${FONT}`;
-      c.fillText("Work Smarter, Together", 300, 380);
+      c.font = `700 76px ${FONT}`;
+      c.fillText("Solusi Macro", 400, 205);
+      c.shadowBlur = 8;
+      c.fillStyle = "#c8f7e9";
+      c.font = `italic 400 36px ${FONT}`;
+      c.fillText("Excel · Dashboard · Otomasi", 400, 280);
+      c.font = `400 30px ${FONT}`;
+      c.fillText("Virtual Office · AI Team", 400, 340);
     });
+    let logoImageDisposed = false;
+    const wallLogoImage = new Image();
+    wallLogoImage.onload = () => {
+      if (logoImageDisposed) return;
+      const canvas = logoTex.image as HTMLCanvasElement;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        console.error("Tidak dapat menggambar logo Solusi Macro pada dinding.");
+        return;
+      }
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(wallLogoImage, 55, 100, 300, 300);
+      context.fillStyle = "#fff";
+      context.textAlign = "left";
+      context.textBaseline = "middle";
+      context.shadowColor = "rgba(20,220,180,0.45)";
+      context.shadowBlur = 24;
+      context.font = `700 76px ${FONT}`;
+      context.fillText("Solusi Macro", 400, 205);
+      context.shadowBlur = 8;
+      context.fillStyle = "#c8f7e9";
+      context.font = `italic 400 36px ${FONT}`;
+      context.fillText("Excel · Dashboard · Otomasi", 400, 280);
+      context.font = `400 30px ${FONT}`;
+      context.fillText("Virtual Office · AI Team", 400, 340);
+      logoTex.needsUpdate = true;
+    };
+    wallLogoImage.onerror = () => {
+      if (!logoImageDisposed) {
+        console.error("Gagal memuat logo Solusi Macro untuk dinding Virtual Office.");
+      }
+    };
+    wallLogoImage.src = "/solusi-macro-logo.png";
 
     const skyTex = canvasTex(1024, 384, (c, w, h) => {
       const g = c.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, "#27356f");
-      g.addColorStop(0.5, "#7b5aa6");
-      g.addColorStop(0.85, "#f2a07a");
-      g.addColorStop(1, "#ffd3a0");
+      g.addColorStop(0, "#666caa");
+      g.addColorStop(0.48, "#b17cae");
+      g.addColorStop(0.84, "#f3a5a0");
+      g.addColorStop(1, "#ffe0bb");
       c.fillStyle = g;
       c.fillRect(0, 0, w, h);
       const r = rng(5);
@@ -911,17 +915,17 @@ export default function VirtualOffice3D({
 
     const boardTex = canvasTex(768, 512, (c, w, h) => {
       const g = c.createLinearGradient(0, 0, w, h);
-      g.addColorStop(0, "#3d8bff");
-      g.addColorStop(1, "#6a5cff");
+      g.addColorStop(0, "#c8b7ef");
+      g.addColorStop(1, "#f1b6c8");
       c.fillStyle = g;
       c.fillRect(0, 0, w, h);
-      c.fillStyle = "#fff";
+      c.fillStyle = "#382d50";
       c.textAlign = "center";
-      c.font = `italic 800 84px ${FONT}`;
-      c.fillText("Dream Big", w / 2, 190);
-      c.font = `800 70px ${FONT}`;
-      c.fillText("Work Together", w / 2, 300);
-      c.strokeStyle = "#fff";
+      c.font = `800 84px ${FONT}`;
+      c.fillText("DREAM IT", w / 2, 190);
+      c.font = `700 62px ${FONT}`;
+      c.fillText("MAKE IT REAL", w / 2, 300);
+      c.strokeStyle = "#fff8ed";
       c.lineWidth = 10;
       c.lineCap = "round";
       c.beginPath();
@@ -995,11 +999,11 @@ export default function VirtualOffice3D({
     /* Karpet bulat di area lounge + karpet krem di area meja */
     const roundRug = (r: number, y: number, color: number) =>
       scene.add(mk(CY(r, r, 0.02, 48), M(color, 0.95), 1.3, y, -0.2, false));
-    roundRug(1.9, 0.05, 0x5fb0ab);
-    roundRug(1.45, 0.062, 0x86cbc4);
-    roundRug(0.95, 0.074, 0xf4efe6);
+    roundRug(1.9, 0.05, 0xb49bd8);
+    roundRug(1.45, 0.062, 0xd1c2e9);
+    roundRug(0.95, 0.074, 0xf7eee7);
     scene.add(
-      mk(RB(2.8, 0.016, 1.9, 0.01), M(0xf1e7d6, 0.98), -3.3, 0.055, 1.3, false),
+      mk(RB(2.8, 0.016, 1.9, 0.01), M(0xdce9e2, 0.98), -3.3, 0.055, 1.3, false),
     );
 
     const walkRingGeo = new THREE.RingGeometry(0.22, 0.32, 28);
@@ -1014,13 +1018,22 @@ export default function VirtualOffice3D({
     walkRing.position.set(1.6, 0.1, 2.2);
     scene.add(walkRing);
 
-    /* ---------- Dinding: ungu + logo, jendela kota ---------- */
+    /* ---------- Dinding: pastel + logo, jendela kota ---------- */
     const H = 3.3;
     scene.add(mk(RB(7.3, H, 0.3, 0.03), wallPurple, -3.05, H / 2, -4.45));
     scene.add(mk(RB(6.1, 0.75, 0.3, 0.03), wallPurple2, 3.65, 0.375, -4.45));
     scene.add(mk(RB(6.1, 0.3, 0.3, 0.03), wallPurple, 3.65, H - 0.15, -4.45));
     scene.add(mk(RB(0.3, H, 9.6, 0.03), wallPurple2, -6.75, H / 2, 0));
     scene.add(mk(RB(0.34, 0.9, 9.6, 0.03), woodMid, -6.73, 0.45, 0));
+
+    const ledMaterial = new THREE.MeshStandardMaterial({
+      color: 0xc9a7ff,
+      emissive: 0x9c5cff,
+      emissiveIntensity: 1.5,
+      toneMapped: false,
+    });
+    scene.add(mk(BX(12.4, 0.035, 0.035), ledMaterial, 0, 0.08, -4.37, false));
+    scene.add(mk(BX(0.035, 0.035, 8.8), ledMaterial, -6.48, 0.08, 0, false));
 
     const winH = H - 1.05;
     const sky = new THREE.Mesh(
@@ -1034,6 +1047,118 @@ export default function VirtualOffice3D({
     );
     for (const mx of [0.62, 2.15, 3.65, 5.15, 6.68]) {
       scene.add(mk(BX(0.08, winH, 0.12), darkMetal, mx, 0.75 + winH / 2, -4.4));
+    }
+
+    const curtainRod = mk(CY(0.035, 0.035, 6.35, 12), woodDark, 3.65, 3.13, -4.2);
+    curtainRod.rotation.z = Math.PI / 2;
+    scene.add(curtainRod);
+    const curtainColors = [0xf3dce4, 0xf8e8ec, 0xe9d9e8, 0xf7e5df];
+    for (const side of [-1, 1]) {
+      for (let fold = 0; fold < 5; fold++) {
+        const x = side < 0 ? 0.68 + fold * 0.13 : 6.62 - fold * 0.13;
+        const curtainFold = mk(
+          RB(0.15, 2.28, 0.075, 0.035),
+          M(curtainColors[fold % curtainColors.length], 0.98),
+          x,
+          1.86,
+          -4.2,
+          false,
+        );
+        scene.add(curtainFold);
+      }
+      const tieback = mk(
+        RB(0.7, 0.07, 0.09, 0.035),
+        M(0xc59b6d, 0.55, 0.3),
+        side < 0 ? 0.95 : 6.35,
+        1.47,
+        -4.14,
+        false,
+      );
+      tieback.rotation.z = side < 0 ? -0.06 : 0.06;
+      scene.add(tieback);
+    }
+
+    const printPalettes = [
+      { paper: "#f8eee5", accent: "#c27d83", detail: "#e5bd8d", caption: "SLOW DOWN" },
+      { paper: "#e9e9dc", accent: "#738c73", detail: "#d9a875", caption: "GROW AT YOUR PACE" },
+      { paper: "#f5e5e9", accent: "#8a719f", detail: "#e5b7a5", caption: "MAKE SPACE" },
+    ];
+    printPalettes.forEach((palette, index) => {
+      const texture = canvasTex(256, 320, (ctx, w, h) => {
+        ctx.fillStyle = palette.paper;
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = palette.detail;
+        ctx.beginPath();
+        ctx.arc(w / 2, 112, 62, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = palette.accent;
+        ctx.beginPath();
+        ctx.arc(w / 2, 133, 45, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = palette.paper;
+        ctx.beginPath();
+        ctx.ellipse(w / 2 + 37, 99, 17, 47, -0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = palette.accent;
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 3;
+        for (let line = 0; line < 3; line++) {
+          ctx.beginPath();
+          ctx.moveTo(32, 205 + line * 12);
+          ctx.bezierCurveTo(85, 188 + line * 12, 164, 222 + line * 12, 224, 202 + line * 12);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#51445d";
+        ctx.font = "700 18px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(palette.caption, w / 2, 285);
+      });
+      const frame = new THREE.Group();
+      frame.position.set(-6.49, 2.12, [-1.6, 0.2, 2.0][index]);
+      frame.rotation.y = Math.PI / 2;
+      frame.add(mk(RB(0.72, 0.88, 0.09, 0.035), woodDark, 0, 0, 0));
+      frame.add(mk(RB(0.64, 0.8, 0.025, 0.015), potWhite, 0, 0, 0.052, false));
+      const print = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.56, 0.72),
+        new THREE.MeshBasicMaterial({ map: texture }),
+      );
+      print.position.z = 0.069;
+      frame.add(print);
+      scene.add(frame);
+    });
+
+    const lightWirePoints = Array.from({ length: 9 }, (_, index) => {
+      const t = index / 8;
+      return new THREE.Vector3(
+        -6.4,
+        2.86 - Math.sin(t * Math.PI) * 0.2,
+        -4.1 + t * 7.8,
+      );
+    });
+    const lightWireCurve = new THREE.CatmullRomCurve3(lightWirePoints);
+    scene.add(
+      new THREE.Mesh(
+        new THREE.TubeGeometry(lightWireCurve, 48, 0.012, 6, false),
+        M(0x8c7765, 0.8),
+      ),
+    );
+    const fairyBulbColors = [0xffe6ad, 0xffc7ce, 0xd8c9ff];
+    for (let bulb = 0; bulb <= 16; bulb++) {
+      const t = bulb / 16;
+      const point = lightWireCurve.getPoint(t);
+      scene.add(
+        mk(
+          SP(0.052, 10, 8),
+          new THREE.MeshBasicMaterial({
+            color: fairyBulbColors[bulb % fairyBulbColors.length],
+          }),
+          point.x,
+          point.y - 0.045,
+          point.z,
+          false,
+        ),
+      );
     }
 
     const logo = new THREE.Mesh(
@@ -1245,7 +1370,7 @@ export default function VirtualOffice3D({
     scene.add(cp);
 
     // Sofa
-    const sofaM = M(0xe6b85c, 0.85);
+    const sofaM = M(0x9c8ac4, 0.85);
     const sofa = new THREE.Group();
     sofa.position.set(2.8, 0, -1.8);
     sofa.add(mk(RB(3.4, 0.32, 1.0, 0.12), sofaM, 0, 0.2, 0));
@@ -1253,24 +1378,45 @@ export default function VirtualOffice3D({
     for (const ax of [-1.6, 1.6])
       sofa.add(mk(RB(0.3, 0.55, 1.0, 0.1), sofaM, ax, 0.38, 0));
     for (const cx of [-0.8, 0.8])
-      sofa.add(mk(RB(1.5, 0.14, 0.85, 0.07), M(0xf0c872, 0.9), cx, 0.43, 0.05));
+      sofa.add(mk(RB(1.5, 0.14, 0.85, 0.07), M(0xb7a6d9, 0.9), cx, 0.43, 0.05));
     [
-      [-1.0, 0x3fb7b0, 0.2],
-      [-0.5, 0xf4efe6, -0.1],
-      [1.1, 0xe86a8a, -0.2],
+      [-1.0, 0xd9c4e7, 0.2],
+      [-0.5, 0xf4e8d9, -0.1],
+      [1.1, 0xe7b2c4, -0.2],
     ].forEach(([px, c, rz]) => {
       const pil = mk(RB(0.42, 0.42, 0.14, 0.06), M(c, 0.9), px, 0.75, -0.25);
       pil.rotation.z = rz;
       pil.rotation.x = -0.25;
       sofa.add(pil);
     });
+    const blanket = mk(
+      RB(0.54, 0.1, 0.72, 0.06),
+      M(0xf0dfca, 0.98),
+      -1.28,
+      0.52,
+      0.08,
+    );
+    blanket.rotation.z = -0.08;
+    sofa.add(blanket);
+    for (let fringe = 0; fringe < 5; fringe++) {
+      sofa.add(
+        mk(
+          SP(0.035, 8, 6),
+          M(0xe4cdb7, 0.98),
+          -1.48 + fringe * 0.1,
+          0.46,
+          0.42,
+          false,
+        ),
+      );
+    }
     scene.add(sofa);
 
     // Bean bag pink
-    const bean = mk(SP(0.7, 20, 14), M(0xe85fa0, 0.95), -0.3, 0.45, -1.0);
+    const bean = mk(SP(0.7, 20, 14), M(0xe7a9bd, 0.95), -0.3, 0.45, -1.0);
     bean.scale.set(1, 0.72, 1);
     scene.add(bean);
-    const beanTop = mk(SP(0.4, 16, 12), M(0xf07ab5, 0.95), -0.25, 0.7, -1.0);
+    const beanTop = mk(SP(0.4, 16, 12), M(0xf0bfd0, 0.95), -0.25, 0.7, -1.0);
     beanTop.scale.set(1, 0.5, 1);
     scene.add(beanTop);
 
@@ -1457,6 +1603,32 @@ export default function VirtualOffice3D({
       const torso = mk(CP(0.14, 0.18), shirtM, 0, hipY + 0.2, 0);
       torso.scale.set(1.15, 1, 0.85);
       body.add(torso);
+      let nameTag: CharacterRig["nameTag"];
+      if (agentIndex >= 0) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 96;
+        const name = FIRST_NAMES[agentIndex % FIRST_NAMES.length];
+        drawNameTag(canvas, name);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        nameTagTextures.push(texture);
+        const material = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          depthWrite: false,
+        });
+        const mesh = new THREE.Mesh(
+          G("nameTagPlane", () => new THREE.PlaneGeometry(0.2, 0.075)),
+          material,
+        );
+        mesh.position.set(0, hipY + 0.2, 0.143);
+        body.add(mesh);
+        nameTag = { canvas, texture, name };
+      }
+      const pelvis = mk(SP(0.135, 16, 12), pantsM, 0, hipY - 0.015, 0);
+      pelvis.scale.set(1.05, 0.72, 0.9);
+      body.add(pelvis);
       if (look.hoodie) {
         const hood = mk(SP(0.15, 12, 10), shirtM, 0, hipY + 0.43, -0.09);
         hood.scale.set(1.3, 0.6, 0.8);
@@ -1580,12 +1752,18 @@ export default function VirtualOffice3D({
 
       const makeArm = (side: number) => {
         const arm = new THREE.Group();
-        arm.position.set(side * 0.2, hipY + 0.36, 0);
-        arm.add(mk(CP(0.045, 0.16), shirtM, 0, -0.14, 0));
+        arm.position.set(side * 0.18, hipY + 0.34, 0);
+        const shoulder = mk(SP(0.075, 16, 12), shirtM, 0, 0, 0);
+        shoulder.scale.set(1, 1.05, 0.95);
+        arm.add(shoulder);
+        arm.add(mk(CP(0.052, 0.15), shirtM, 0, -0.13, 0));
         const elbow = new THREE.Group();
-        elbow.position.set(0, -0.26, 0);
-        elbow.add(mk(CP(0.04, 0.14), shirtM, 0, -0.11, 0));
-        elbow.add(mk(SP(0.05, 10, 8), skinM, 0, -0.24, 0));
+        elbow.position.set(0, -0.25, 0);
+        elbow.add(mk(SP(0.058, 14, 10), shirtM, 0, 0, 0));
+        elbow.add(mk(CP(0.047, 0.14), shirtM, 0, -0.105, 0));
+        const hand = mk(SP(0.052, 14, 10), skinM, 0, -0.225, 0.008);
+        hand.scale.set(0.9, 0.82, 0.85);
+        elbow.add(hand);
         arm.add(elbow);
         body.add(arm);
         return { arm, elbow };
@@ -1596,11 +1774,13 @@ export default function VirtualOffice3D({
       const makeLeg = (side: number) => {
         const leg = new THREE.Group();
         leg.position.set(side * 0.09, hipY, 0);
-        leg.add(mk(CP(0.065, 0.21), pantsM, 0, -0.18, 0));
+        leg.add(mk(SP(0.078, 14, 10), pantsM, 0, 0, 0));
+        leg.add(mk(CP(0.07, 0.2), pantsM, 0, -0.17, 0));
         const knee = new THREE.Group();
-        knee.position.set(0, -0.34, 0);
-        knee.add(mk(CP(0.055, 0.2), pantsM, 0, -0.17, 0));
-        knee.add(mk(RB(0.1, 0.07, 0.22, 0.025), shoeM, 0, -0.34, 0.05));
+        knee.position.set(0, -0.33, 0);
+        knee.add(mk(SP(0.073, 14, 10), pantsM, 0, 0, 0));
+        knee.add(mk(CP(0.06, 0.18), pantsM, 0, -0.16, 0));
+        knee.add(mk(RB(0.13, 0.085, 0.24, 0.04), shoeM, 0, -0.34, 0.05));
         leg.add(knee);
         body.add(leg);
         return { leg, knee };
@@ -1656,6 +1836,7 @@ export default function VirtualOffice3D({
         group,
         body,
         head,
+        nameTag,
         leftArm: la.arm,
         rightArm: ra.arm,
         leftElbow: la.elbow,
@@ -1947,6 +2128,14 @@ export default function VirtualOffice3D({
         const tks = tasksRef.current;
         rigs.forEach((rig, i) => {
           const ag = ags[i];
+          if (ag && rig.nameTag) {
+            const name = getShortFirstName(ag, i);
+            if (rig.nameTag.name !== name) {
+              drawNameTag(rig.nameTag.canvas, name);
+              rig.nameTag.texture.needsUpdate = true;
+              rig.nameTag.name = name;
+            }
+          }
           const busy = Boolean(
             ag &&
             tks.some(
@@ -2012,6 +2201,7 @@ export default function VirtualOffice3D({
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      logoImageDisposed = true;
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", onVisibility);
       resizeObs.disconnect();
@@ -2030,6 +2220,7 @@ export default function VirtualOffice3D({
         if (Array.isArray(m)) m.forEach((x) => x.dispose());
         else m?.dispose();
       });
+      nameTagTextures.forEach((texture) => texture.dispose());
       geoCache.forEach((g) => g.dispose());
       matCache.forEach((m) => m.dispose());
       walkRingGeo.dispose();
@@ -2116,7 +2307,9 @@ export default function VirtualOffice3D({
           assigned_agent_id: selectedAgent.id,
           project_id: activeProject?.id ?? null,
           auto_execute: true,
-          attachment_ids: taskAttachments.map((attachment) => attachment.file_id),
+          attachment_ids: taskAttachments.map(
+            (attachment) => attachment.file_id,
+          ),
         }),
       });
       const data = await res.json();
@@ -2149,9 +2342,7 @@ export default function VirtualOffice3D({
     if (files.length === 0) return;
 
     setTaskUploadError(
-      selectedFiles.length > remainingSlots
-        ? "Maksimal 5 file lampiran."
-        : "",
+      selectedFiles.length > remainingSlots ? "Maksimal 5 file lampiran." : "",
     );
     setUploadingTaskFiles(true);
     try {
@@ -2178,9 +2369,7 @@ export default function VirtualOffice3D({
     const remainingSlots = Math.max(0, 5 - chatAttachments.length);
     const files = selectedFiles.slice(0, remainingSlots);
     setChatUploadError(
-      selectedFiles.length > remainingSlots
-        ? "Maksimal 5 file lampiran."
-        : "",
+      selectedFiles.length > remainingSlots ? "Maksimal 5 file lampiran." : "",
     );
 
     setUploadingChatFiles(true);
@@ -2279,7 +2468,7 @@ export default function VirtualOffice3D({
       className="relative h-[calc(100vh-1px)] min-h-[680px] w-full select-none overflow-hidden"
       style={{
         background:
-          "radial-gradient(ellipse at 50% 40%, #5a4a86 0%, #2a2246 55%, #151128 100%)",
+          "radial-gradient(ellipse at 50% 40%, #e8dff5 0%, #b8a9d2 55%, #756a91 100%)",
       }}
     >
       {/* Kanvas 3D */}
@@ -2321,7 +2510,8 @@ export default function VirtualOffice3D({
               )}
               <button
                 type="button"
-                aria-label={`Pilih ${getShortFirstName(a, i)}`}
+                aria-label={`Pilih peran ${a.role}`}
+                title={a.role}
                 onClick={(e) => {
                   e.stopPropagation();
                   openMenuAt(a.id, e.clientX, e.clientY);
@@ -2339,7 +2529,7 @@ export default function VirtualOffice3D({
                     boxShadow: busyTitle ? "0 0 0 2px #f5b54655" : undefined,
                   }}
                 />
-                <span>{getShortFirstName(a, i)}</span>
+                <span className="max-w-[155px] truncate">{a.role}</span>
               </button>
             </div>
           );
@@ -2708,7 +2898,65 @@ export default function VirtualOffice3D({
               </p>
             )}
           </div>
-          <form onSubmit={handleAskProgressSubmit} className="flex gap-2">
+
+          {chatAttachments.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {chatAttachments.map((file) => (
+                <span
+                  key={file.file_id}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-200"
+                >
+                  <span>{file.kind === "image" ? "🖼️" : "📊"}</span>
+                  <span className="max-w-[140px] truncate">
+                    {file.filename}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setChatAttachments((prev) =>
+                        prev.filter((item) => item.file_id !== file.file_id),
+                      )
+                    }
+                    className="text-stone-400 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {chatUploadError && (
+            <p role="alert" className="mb-2 text-xs text-red-300">
+              {chatUploadError}
+            </p>
+          )}
+
+          <input
+            ref={chatFileInputRef}
+            type="file"
+            multiple
+            accept=".xlsx,.xlsm,.csv,image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={handleChatFilesSelected}
+          />
+
+          <form
+            onSubmit={handleAskProgressSubmit}
+            className="flex gap-2 items-center"
+          >
+            <button
+              type="button"
+              aria-label="Upload lampiran"
+              title="Upload file Excel, CSV, atau gambar"
+              onClick={() => chatFileInputRef.current?.click()}
+              disabled={
+                chatLoading || uploadingChatFiles || chatAttachments.length >= 5
+              }
+              className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-stone-200 transition disabled:opacity-40"
+            >
+              {uploadingChatFiles ? "..." : "📎"}
+            </button>
             <input
               type="text"
               value={chatInput}
@@ -2718,7 +2966,7 @@ export default function VirtualOffice3D({
             />
             <button
               type="submit"
-              disabled={chatLoading}
+              disabled={chatLoading || uploadingChatFiles}
               className={BTN_PRIMARY}
             >
               {chatLoading ? "..." : "Tanya Sekarang"}

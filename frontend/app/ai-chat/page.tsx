@@ -35,6 +35,12 @@ type Message = {
   created_at?: string;
 };
 
+type AIModel = {
+  id: string;
+  label: string;
+  description?: string;
+};
+
 const agentIcons: Record<string, string> = {
   "AI CEO": "👔",
   Secretary: "📋",
@@ -106,6 +112,12 @@ async function fetchChatHistory(sessionId: string): Promise<Message[]> {
 export default function AICEOChatPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [availableModels, setAvailableModels] = useState<AIModel[]>([
+    {
+      id: "auto",
+      label: "⚡ Smart Multi-Model (Optimal per Agent)",
+    },
+  ]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState<string>("auto");
@@ -120,6 +132,30 @@ export default function AICEOChatPage() {
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [attachmentError, setAttachmentError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    fetch(`${API_URL}/ai/models`)
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Gagal memuat daftar model AI.");
+        }
+        const data = await response.json();
+        if (active && Array.isArray(data.models)) {
+          setAvailableModels(data.models);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setError("Gagal memuat daftar model AI.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Load Agents & Projects
   useEffect(() => {
@@ -162,6 +198,9 @@ export default function AICEOChatPage() {
     projects.find((p) => String(p.id) === selectedProjectId) ?? null;
   const sessionId = buildSessionId(activeAgent, selectedProjectId);
   const historyLoading = loadedSessionId !== sessionId;
+  const selectedModelInfo = availableModels.find(
+    (model) => model.id === selectedModel,
+  );
 
   // Load chat history whenever sessionId changes
   useEffect(() => {
@@ -341,26 +380,20 @@ export default function AICEOChatPage() {
               value={selectedModel}
               onChange={(event) => setSelectedModel(event.target.value)}
               className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 outline-none focus:border-amber-400"
-              title="Pilih Model AI untuk diskusi (Smart Multi-Model otomatis menyesuaikan dengan spesialisasi Agent)"
+              title={
+                selectedModelInfo?.description ??
+                "Pilih model AI yang akan digunakan."
+              }
             >
-              <option value="auto" className="bg-[#09090b] text-white">
-                ⚡ Smart Multi-Model (Optimal per Agent)
-              </option>
-              <option value="claude-opus-5-5" className="bg-[#09090b] text-white">
-                🏆 Claude Opus 5.5 (AI CEO & Strategi)
-              </option>
-              <option value="claude-sonnet-5" className="bg-[#09090b] text-white">
-                🚀 Claude Sonnet 5 (Bisnis & Kreatif)
-              </option>
-              <option value="gemini-3.1-pro-preview" className="bg-[#09090b] text-white">
-                🧠 Gemini 3.1 Pro (Dashboard & Planner)
-              </option>
-              <option value="deepseek-v4.1-flash" className="bg-[#09090b] text-white">
-                ⚡ DeepSeek v4.1 Flash (Excel & Otomasi)
-              </option>
-              <option value="gpt-5.4-nano" className="bg-[#09090b] text-white">
-                🪶 GPT-5.4 Nano (Ultra Cepat)
-              </option>
+              {availableModels.map((model) => (
+                <option
+                  key={model.id}
+                  value={model.id}
+                  className="bg-[#09090b] text-white"
+                >
+                  {model.label}
+                </option>
+              ))}
             </select>
 
             <select

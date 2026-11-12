@@ -39,6 +39,10 @@ from models import (
 )
 
 from ai_service import (
+    AI_PROVIDER,
+    GEMINI_API_KEY,
+    GEMINI_MODEL,
+    OCTA_API_KEY,
     ask_claude,
     generate_task_plan,
     execute_agent_task,
@@ -1847,12 +1851,28 @@ def get_system_status(db: Session = Depends(get_db)):
 
 @app.get("/ai/status")
 def get_ai_status():
+    if AI_PROVIDER == "gemini":
+        is_configured = bool(GEMINI_API_KEY and GEMINI_API_KEY.strip())
+        provider = "Google Gemini API"
+        model = GEMINI_MODEL
+        base_url = "Configured through GEMINI_BASE_URL"
+    elif AI_PROVIDER == "octa":
+        is_configured = bool(OCTA_API_KEY and OCTA_API_KEY.strip())
+        provider = "OCTA Telkomsel"
+        model = "Configured through OCTA_MODEL"
+        base_url = "Configured through OCTA_BASE_URL"
+    else:
+        is_configured = False
+        provider = f"Unknown provider: {AI_PROVIDER}"
+        model = "Unavailable"
+        base_url = "Unavailable"
+
     return {
-        "success": True,
-        "provider": "OCTA Telkomsel",
-        "model": "Configured through OCTA_MODEL",
-        "base_url": "Configured through OCTA_BASE_URL",
-        "status": "configured",
+        "success": is_configured,
+        "provider": provider,
+        "model": model,
+        "base_url": base_url,
+        "status": "configured" if is_configured else "missing_api_key",
     }
 
 
