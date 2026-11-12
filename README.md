@@ -81,8 +81,8 @@ Pastikan perangkat Anda telah terpasang:
 
 ### Langkah 1: Clone Repository
 ```bash
-git clone https://github.com/<username-anda>/solusi-macro-vhq.git
-cd solusi-macro-vhq
+git clone https://github.com/jajatrohiman69/sm-vo-ai.git
+cd sm-vo-ai
 ```
 
 ---
