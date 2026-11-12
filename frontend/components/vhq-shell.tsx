@@ -113,6 +113,12 @@ export default function VhqShell({
       emoji: "📡",
       badge: "5 API",
     },
+    {
+      href: "/settings",
+      label: "Pengaturan AI",
+      emoji: "⚙️",
+      badge: "API Hub",
+    },
   ];
 
   function isActive(href: string) {
@@ -303,17 +309,21 @@ export default function VhqShell({
 
         {/* BOTTOM MODEL & FOUNDER BAR */}
         <div className="pt-3 border-t border-white/10 space-y-2.5">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 truncate">
+          <Link
+            href="/settings"
+            className="flex items-center justify-between px-1 hover:bg-white/5 py-1 rounded-lg transition"
+            title="Klik untuk membuka Pengaturan Provider & Model AI"
+          >
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-300 truncate">
               <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
               <span className="truncate font-mono text-[11px]">
-                claude-opus-5-5
+                AI Engine
               </span>
             </div>
-            <span className="rounded bg-amber-500/20 border border-amber-400/30 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
-              5-Model
+            <span className="rounded bg-indigo-500/20 border border-indigo-400/30 px-1.5 py-0.5 text-[10px] font-bold text-indigo-300">
+              API Hub ⚙️
             </span>
-          </div>
+          </Link>
 
           <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#131316] px-3 py-2">
             <div className="min-w-0">
