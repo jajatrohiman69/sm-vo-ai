@@ -22,6 +22,21 @@ available to your key if needed. When this provider is active, chat, task
 planning, agent tasks, and social content use the configured Gemini model.
 OCTA remains the default provider when `VHQ_AI_PROVIDER` is not set.
 
+## Custom OpenAI-compatible API
+
+To use another provider with an OpenAI-compatible chat completions API, set
+these values in `backend/.env`:
+
+```env
+VHQ_AI_PROVIDER=openai-compatible
+VHQ_AI_API_KEY=your-api-key
+VHQ_AI_BASE_URL=https://your-provider.example/v1
+VHQ_AI_MODEL=your-model-id
+```
+
+Replace the URL and model with the values supplied by your provider. Keep the
+API key private and restart the backend after changing the file.
+
 ## Founder login
 
 Copy `../backend/.env.example` to `../backend/.env` and set a unique Founder password

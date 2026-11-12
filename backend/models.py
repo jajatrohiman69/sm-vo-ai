@@ -256,3 +256,20 @@ class SocialPostMetric(Base):
     engagement_rate = Column(String, nullable=True)
     ai_pattern_notes = Column(Text, nullable=True)
     recorded_at = Column(DateTime, default=datetime.now)
+
+
+class AIProviderConfig(Base):
+    __tablename__ = "ai_provider_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider_id = Column(String, unique=True, index=True, nullable=False)  # octa, gemini, custom, openrouter, groq
+    name = Column(String, nullable=False)
+    base_url = Column(String, nullable=False)
+    api_key = Column(String, nullable=True)
+    default_model = Column(String, nullable=False)
+    custom_models_json = Column(Text, nullable=True)  # JSON list of model objects
+    is_active = Column(Integer, default=0)  # 1 if this is the active provider
+    status = Column(String, default="Not Tested")  # Active, Connected, Failed, Not Tested
+    last_tested_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+

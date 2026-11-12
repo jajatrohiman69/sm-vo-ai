@@ -97,6 +97,29 @@ function buildSessionId(agent: Agent | null, projectId: string): string {
   return projectId ? `${base}-project-${projectId}` : base;
 }
 
+async function parseApiResponse(
+  response: Response,
+): Promise<Record<string, unknown>> {
+  const body = await response.text();
+  let data: unknown;
+
+  try {
+    data = JSON.parse(body) as unknown;
+  } catch {
+    throw new Error(
+      response.ok
+        ? "Server mengembalikan respons non-JSON."
+        : `Server gagal merespons dengan benar (HTTP ${response.status}).`,
+    );
+  }
+
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    throw new Error("Format respons server tidak valid.");
+  }
+
+  return data as Record<string, unknown>;
+}
+
 async function fetchChatHistory(sessionId: string): Promise<Message[]> {
   const response = await fetch(
     `${API_URL}/ai/chat/history?session_id=${encodeURIComponent(sessionId)}`,
@@ -270,13 +293,18 @@ export default function AICEOChatPage() {
         }),
       });
 
-      const data = await response.json();
+      const data = await parseApiResponse(response);
 
       if (!response.ok) {
-        throw new Error(data.detail || "AI Agent gagal merespons.");
+        throw new Error(
+          typeof data.detail === "string"
+            ? data.detail
+            : "AI Agent gagal merespons.",
+        );
       }
 
-      if (typeof data.message !== "string") {
+      const assistantMessage = data.message;
+      if (typeof assistantMessage !== "string") {
         throw new Error("Respons AI Agent tidak memiliki isi pesan.");
       }
 
@@ -284,7 +312,7 @@ export default function AICEOChatPage() {
         ...previous,
         {
           role: "assistant",
-          content: data.message,
+          content: assistantMessage,
         },
       ]);
       setAttachments([]);

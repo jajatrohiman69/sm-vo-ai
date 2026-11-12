@@ -32,17 +32,13 @@ from models import (
     TaskPlanItem,
     TaskAttachment,
     SocialConfig,
-    SocialConfig,
     SocialAccount,
     SocialPost,
     SocialPostMetric,
+    AIProviderConfig,
 )
 
 from ai_service import (
-    AI_PROVIDER,
-    GEMINI_API_KEY,
-    GEMINI_MODEL,
-    OCTA_API_KEY,
     ask_claude,
     generate_task_plan,
     execute_agent_task,
@@ -50,9 +46,11 @@ from ai_service import (
     generate_social_calendar,
     refine_social_platform_content,
     analyze_and_replicate_winning_posts,
-    AVAILABLE_MODELS,
-    TASK_OPTIMAL_MODEL_MAP,
     resolve_ai_model,
+    get_active_provider_config,
+    get_available_models_list,
+    init_db_providers,
+    test_provider_connection,
 )
 from excel_vba_service import (
     STORAGE_DIR,
@@ -256,6 +254,29 @@ class TaskReviewRequest(BaseModel):
 
 class TaskRetryRequest(BaseModel):
     task_ids: Optional[list[int]] = None
+
+
+class AIProviderUpdateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    base_url: str = Field(min_length=1, max_length=500)
+    api_key: Optional[str] = Field(default="")
+    default_model: str = Field(min_length=1, max_length=120)
+    custom_models_json: Optional[str] = None
+
+
+class AIProviderTestRequest(BaseModel):
+    base_url: str = Field(min_length=1, max_length=500)
+    api_key: Optional[str] = Field(default="")
+    model: Optional[str] = Field(default="")
+
+
+class AIProviderCreateRequest(BaseModel):
+    provider_id: str = Field(min_length=1, max_length=60)
+    name: str = Field(min_length=1, max_length=120)
+    base_url: str = Field(min_length=1, max_length=500)
+    api_key: Optional[str] = Field(default="")
+    default_model: str = Field(min_length=1, max_length=120)
+    custom_models_json: Optional[str] = None
 
 
 # ============================================================
@@ -1856,23 +1877,37 @@ def get_ai_status():
         provider = "Google Gemini API"
         model = GEMINI_MODEL
         base_url = "Configured through GEMINI_BASE_URL"
+        status = "configured" if is_configured else "missing_api_key"
     elif AI_PROVIDER == "octa":
         is_configured = bool(OCTA_API_KEY and OCTA_API_KEY.strip())
         provider = "OCTA Telkomsel"
         model = "Configured through OCTA_MODEL"
         base_url = "Configured through OCTA_BASE_URL"
+        status = "configured" if is_configured else "missing_api_key"
+    elif AI_PROVIDER == "openai-compatible":
+        is_configured = bool(
+            VHQ_AI_API_KEY
+            and VHQ_AI_API_KEY.strip()
+            and VHQ_AI_BASE_URL
+            and VHQ_AI_MODEL
+        )
+        provider = "OpenAI-compatible API"
+        model = VHQ_AI_MODEL or "Not configured"
+        base_url = "Configured through VHQ_AI_BASE_URL"
+        status = "configured" if is_configured else "missing_configuration"
     else:
         is_configured = False
         provider = f"Unknown provider: {AI_PROVIDER}"
         model = "Unavailable"
         base_url = "Unavailable"
+        status = "missing_api_key"
 
     return {
         "success": is_configured,
         "provider": provider,
         "model": model,
         "base_url": base_url,
-        "status": "configured" if is_configured else "missing_api_key",
+        "status": status,
     }
 
 
@@ -1947,12 +1982,197 @@ def delete_chat_history(
 
 
 @app.get("/ai/models")
-def get_available_ai_models():
+def get_available_ai_models(db: Session = Depends(get_db)):
+    init_db_providers(db)
+    models_list = get_available_models_list(db)
+    cfg = get_active_provider_config(db)
     return {
         "default": "auto",
-        "models": AVAILABLE_MODELS,
-        "task_routing": TASK_OPTIMAL_MODEL_MAP,
+        "active_provider": cfg,
+        "models": models_list,
     }
+
+
+# ============================================================
+# AI PROVIDERS MANAGEMENT ENDPOINTS
+# ============================================================
+
+@app.get("/ai/providers")
+def get_ai_providers(db: Session = Depends(get_db)):
+    init_db_providers(db)
+    providers = db.query(AIProviderConfig).order_by(AIProviderConfig.id.asc()).all()
+    active_cfg = get_active_provider_config(db)
+    return {
+        "success": True,
+        "active_provider_id": active_cfg.get("provider_id"),
+        "providers": [
+            {
+                "id": p.id,
+                "provider_id": p.provider_id,
+                "name": p.name,
+                "base_url": p.base_url,
+                "api_key": p.api_key or "",
+                "default_model": p.default_model,
+                "custom_models_json": p.custom_models_json,
+                "is_active": p.is_active == 1,
+                "status": p.status,
+                "last_tested_at": p.last_tested_at,
+                "updated_at": p.updated_at,
+            }
+            for p in providers
+        ],
+    }
+
+
+@app.post("/ai/providers/switch")
+def switch_active_provider(
+    payload: dict,
+    db: Session = Depends(get_db),
+):
+    init_db_providers(db)
+    provider_id = payload.get("provider_id", "").strip().lower()
+    target = db.query(AIProviderConfig).filter(AIProviderConfig.provider_id == provider_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Provider tidak ditemukan.")
+
+    db.query(AIProviderConfig).update({AIProviderConfig.is_active: 0})
+    target.is_active = 1
+    target.status = "Active"
+    db.commit()
+
+    create_activity_log(
+        db,
+        "AI Provider Switched",
+        f"Founder mengganti provider AI aktif menjadi '{target.name}' ({target.base_url}).",
+    )
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Provider AI berhasil diubah ke '{target.name}'.",
+        "active_provider": {
+            "provider_id": target.provider_id,
+            "name": target.name,
+            "base_url": target.base_url,
+            "default_model": target.default_model,
+        },
+    }
+
+
+@app.put("/ai/providers/{provider_id}")
+def update_provider_config(
+    provider_id: str,
+    payload: AIProviderUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    init_db_providers(db)
+    target = db.query(AIProviderConfig).filter(AIProviderConfig.provider_id == provider_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Provider tidak ditemukan.")
+
+    target.name = payload.name.strip()
+    target.base_url = payload.base_url.strip().rstrip("/")
+    if payload.api_key is not None:
+        target.api_key = payload.api_key.strip()
+    target.default_model = payload.default_model.strip()
+    if payload.custom_models_json is not None:
+        target.custom_models_json = payload.custom_models_json
+
+    db.commit()
+    db.refresh(target)
+
+    create_activity_log(
+        db,
+        "AI Provider Updated",
+        f"Founder memperbarui konfigurasi provider '{target.name}'.",
+    )
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Konfigurasi '{target.name}' berhasil disimpan.",
+        "provider": {
+            "provider_id": target.provider_id,
+            "name": target.name,
+            "base_url": target.base_url,
+            "default_model": target.default_model,
+        },
+    }
+
+
+@app.post("/ai/providers/test")
+def test_provider_endpoint(payload: AIProviderTestRequest):
+    result = test_provider_connection(
+        base_url=payload.base_url,
+        api_key=payload.api_key or "",
+        model=payload.model or "",
+    )
+    return result
+
+
+@app.post("/ai/providers")
+def add_new_provider(
+    payload: AIProviderCreateRequest,
+    db: Session = Depends(get_db),
+):
+    init_db_providers(db)
+    clean_id = payload.provider_id.strip().lower()
+    existing = db.query(AIProviderConfig).filter(AIProviderConfig.provider_id == clean_id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Provider ID '{clean_id}' sudah digunakan.")
+
+    new_p = AIProviderConfig(
+        provider_id=clean_id,
+        name=payload.name.strip(),
+        base_url=payload.base_url.strip().rstrip("/"),
+        api_key=payload.api_key.strip() if payload.api_key else "",
+        default_model=payload.default_model.strip(),
+        custom_models_json=payload.custom_models_json,
+        is_active=0,
+        status="Not Tested",
+    )
+    db.add(new_p)
+    db.commit()
+    db.refresh(new_p)
+
+    create_activity_log(
+        db,
+        "AI Provider Added",
+        f"Founder menambahkan provider AI baru: '{new_p.name}' ({new_p.base_url}).",
+    )
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Provider '{new_p.name}' berhasil ditambahkan.",
+        "provider_id": new_p.provider_id,
+    }
+
+
+@app.delete("/ai/providers/{provider_id}")
+def delete_provider(
+    provider_id: str,
+    db: Session = Depends(get_db),
+):
+    init_db_providers(db)
+    target = db.query(AIProviderConfig).filter(AIProviderConfig.provider_id == provider_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Provider tidak ditemukan.")
+    if target.is_active == 1:
+        raise HTTPException(status_code=400, detail="Tidak dapat menghapus provider yang sedang aktif.")
+
+    name = target.name
+    db.delete(target)
+    db.commit()
+
+    create_activity_log(
+        db,
+        "AI Provider Deleted",
+        f"Founder menghapus provider AI '{name}'.",
+    )
+    db.commit()
+
+    return {"success": True, "message": f"Provider '{name}' berhasil dihapus."}
 
 
 @app.post("/ai/files/upload")
