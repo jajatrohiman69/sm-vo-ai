@@ -1871,43 +1871,19 @@ def get_system_status(db: Session = Depends(get_db)):
 # ============================================================
 
 @app.get("/ai/status")
-def get_ai_status():
-    if AI_PROVIDER == "gemini":
-        is_configured = bool(GEMINI_API_KEY and GEMINI_API_KEY.strip())
-        provider = "Google Gemini API"
-        model = GEMINI_MODEL
-        base_url = "Configured through GEMINI_BASE_URL"
-        status = "configured" if is_configured else "missing_api_key"
-    elif AI_PROVIDER == "octa":
-        is_configured = bool(OCTA_API_KEY and OCTA_API_KEY.strip())
-        provider = "OCTA Telkomsel"
-        model = "Configured through OCTA_MODEL"
-        base_url = "Configured through OCTA_BASE_URL"
-        status = "configured" if is_configured else "missing_api_key"
-    elif AI_PROVIDER == "openai-compatible":
-        is_configured = bool(
-            VHQ_AI_API_KEY
-            and VHQ_AI_API_KEY.strip()
-            and VHQ_AI_BASE_URL
-            and VHQ_AI_MODEL
-        )
-        provider = "OpenAI-compatible API"
-        model = VHQ_AI_MODEL or "Not configured"
-        base_url = "Configured through VHQ_AI_BASE_URL"
-        status = "configured" if is_configured else "missing_configuration"
-    else:
-        is_configured = False
-        provider = f"Unknown provider: {AI_PROVIDER}"
-        model = "Unavailable"
-        base_url = "Unavailable"
-        status = "missing_api_key"
+def get_ai_status(db: Session = Depends(get_db)):
+    init_db_providers(db)
+    config = get_active_provider_config(db)
+    provider = config.get("name") or config.get("provider_id") or "Unknown"
+    model = config.get("default_model") or "Not configured"
+    is_configured = bool(config.get("base_url") and config.get("default_model"))
 
     return {
         "success": is_configured,
         "provider": provider,
         "model": model,
-        "base_url": base_url,
-        "status": status,
+        "base_url": "Configured through Settings" if is_configured else "Unavailable",
+        "status": "configured" if is_configured else "missing_configuration",
     }
 
 
