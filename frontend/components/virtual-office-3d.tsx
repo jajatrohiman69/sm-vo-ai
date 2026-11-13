@@ -12,8 +12,14 @@ import remarkGfm from "remark-gfm";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { API_URL, uploadAttachment } from "@/lib/api";
-import type { UploadedAttachment } from "@/lib/api";
+import {
+  API_URL,
+  DEFAULT_WORKSPACE_SETTINGS,
+  resolveLogoUrl,
+  uploadAttachment,
+  type UploadedAttachment,
+  type WorkspaceSettings,
+} from "@/lib/api";
 
 /* ------------------------------------------------------------------ */
 /* Types (tetap diekspor karena dipakai file lain)                     */
@@ -226,7 +232,7 @@ function getIndonesianAlias(agent: OfficeAgent, index: number): string {
   if (isRoleName(raw)) {
     return `${FIRST_NAMES[index % FIRST_NAMES.length]} (${raw})`;
   }
-  return PRESET_ALIASES[index % PRESET_ALIASES.length] || raw;
+  return agent.role ? `${raw} · ${agent.role}` : raw || PRESET_ALIASES[index % PRESET_ALIASES.length];
 }
 
 function getShortFirstName(agent: OfficeAgent, index: number): string {
@@ -470,6 +476,9 @@ export default function VirtualOffice3D({
   const [creatingProj, setCreatingProj] = useState(false);
 
   const [clockText, setClockText] = useState("");
+  const [branding, setBranding] = useState<WorkspaceSettings>(
+    DEFAULT_WORKSPACE_SETTINGS,
+  );
 
   /* Ref yang dibaca loop animasi (tanpa memicu render ulang) */
   const roleModeRef = useRef(roleMode);
@@ -477,11 +486,42 @@ export default function VirtualOffice3D({
   const agentsRef = useRef<OfficeAgent[]>([]);
   const tasksRef = useRef<OfficeTask[]>([]);
   const onSelectRef = useRef(onSelectAgentExternal);
+  const brandingRef = useRef<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
+  const redrawBrandingRef = useRef<((b: WorkspaceSettings) => void) | null>(
+    null,
+  );
   const ceoTargetRef = useRef(new THREE.Vector3(0.2, 0, 1.6));
   const ceoLabelRef = useRef<HTMLDivElement | null>(null);
   const badgeRefs = useRef<Map<number, HTMLElement>>(new Map());
   const walkedForRef = useRef<number | null>(null);
   const sigRef = useRef({ a: "", p: "", t: "" });
+
+  useEffect(() => {
+    brandingRef.current = branding;
+    redrawBrandingRef.current?.(branding);
+  }, [branding]);
+
+  useEffect(() => {
+    let active = true;
+    const loadBranding = async () => {
+      try {
+        const res = await fetch(`${API_URL}/workspace/settings`);
+        if (res.ok && active) {
+          const data = await res.json();
+          if (data?.office_name) setBranding(data);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    void loadBranding();
+    const onUpdated = () => void loadBranding();
+    window.addEventListener("vhq-branding-updated", onUpdated);
+    return () => {
+      active = false;
+      window.removeEventListener("vhq-branding-updated", onUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     roleModeRef.current = roleMode;
@@ -810,55 +850,56 @@ export default function VirtualOffice3D({
     });
 
     /* ---------- Tekstur: logo, kota senja, layar, papan ---------- */
-    const logoTex = canvasTex(1024, 512, (c, w, h) => {
-      c.clearRect(0, 0, w, h);
+    let logoImageDisposed = false;
+    const drawLogoText = (
+      c: CanvasRenderingContext2D,
+      b: WorkspaceSettings,
+    ) => {
       c.fillStyle = "#fff";
       c.textAlign = "left";
       c.textBaseline = "middle";
       c.shadowColor = "rgba(20,220,180,0.45)";
       c.shadowBlur = 24;
-      c.font = `700 76px ${FONT}`;
-      c.fillText("Solusi Macro", 400, 205);
+      let fontSize = 76;
+      c.font = `700 ${fontSize}px ${FONT}`;
+      while (c.measureText(b.office_name).width > 580 && fontSize > 36) {
+        fontSize -= 4;
+        c.font = `700 ${fontSize}px ${FONT}`;
+      }
+      c.fillText(b.office_name, 400, 205);
       c.shadowBlur = 8;
       c.fillStyle = "#c8f7e9";
-      c.font = `italic 400 36px ${FONT}`;
-      c.fillText("Excel · Dashboard · Otomasi", 400, 280);
-      c.font = `400 30px ${FONT}`;
-      c.fillText("Virtual Office · AI Team", 400, 340);
+      c.font = `italic 400 34px ${FONT}`;
+      c.fillText(b.office_subtitle, 400, 280);
+      c.font = `400 28px ${FONT}`;
+      c.fillText(b.office_badge, 400, 340);
+    };
+
+    const logoTex = canvasTex(1024, 512, (c, w, h) => {
+      c.clearRect(0, 0, w, h);
+      drawLogoText(c, brandingRef.current);
     });
-    let logoImageDisposed = false;
-    const wallLogoImage = new Image();
-    wallLogoImage.onload = () => {
-      if (logoImageDisposed) return;
+
+    const paintLogoTex = (b: WorkspaceSettings) => {
       const canvas = logoTex.image as HTMLCanvasElement;
       const context = canvas.getContext("2d");
-      if (!context) {
-        console.error("Tidak dapat menggambar logo Solusi Macro pada dinding.");
-        return;
-      }
+      if (!context) return;
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(wallLogoImage, 55, 100, 300, 300);
-      context.fillStyle = "#fff";
-      context.textAlign = "left";
-      context.textBaseline = "middle";
-      context.shadowColor = "rgba(20,220,180,0.45)";
-      context.shadowBlur = 24;
-      context.font = `700 76px ${FONT}`;
-      context.fillText("Solusi Macro", 400, 205);
-      context.shadowBlur = 8;
-      context.fillStyle = "#c8f7e9";
-      context.font = `italic 400 36px ${FONT}`;
-      context.fillText("Excel · Dashboard · Otomasi", 400, 280);
-      context.font = `400 30px ${FONT}`;
-      context.fillText("Virtual Office · AI Team", 400, 340);
+      drawLogoText(context, b);
       logoTex.needsUpdate = true;
+
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        if (logoImageDisposed) return;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(img, 55, 100, 300, 300);
+        drawLogoText(context, b);
+        logoTex.needsUpdate = true;
+      };
+      img.src = resolveLogoUrl(b.logo_url);
     };
-    wallLogoImage.onerror = () => {
-      if (!logoImageDisposed) {
-        console.error("Gagal memuat logo Solusi Macro untuk dinding Virtual Office.");
-      }
-    };
-    wallLogoImage.src = "/solusi-macro-logo.png";
+    paintLogoTex(brandingRef.current);
 
     const skyTex = canvasTex(1024, 384, (c, w, h) => {
       const g = c.createLinearGradient(0, 0, 0, h);
@@ -913,7 +954,12 @@ export default function VirtualOffice3D({
     const screenA = new THREE.MeshBasicMaterial({ map: codeTex(200) });
     const screenB = new THREE.MeshBasicMaterial({ map: codeTex(300) });
 
-    const boardTex = canvasTex(768, 512, (c, w, h) => {
+    const drawBoard = (
+      c: CanvasRenderingContext2D,
+      w: number,
+      h: number,
+      b: WorkspaceSettings,
+    ) => {
       const g = c.createLinearGradient(0, 0, w, h);
       g.addColorStop(0, "#c8b7ef");
       g.addColorStop(1, "#f1b6c8");
@@ -922,9 +968,9 @@ export default function VirtualOffice3D({
       c.fillStyle = "#382d50";
       c.textAlign = "center";
       c.font = `800 84px ${FONT}`;
-      c.fillText("DREAM IT", w / 2, 190);
+      c.fillText(b.led_line_1 || "DREAM IT", w / 2, 190);
       c.font = `700 62px ${FONT}`;
-      c.fillText("MAKE IT REAL", w / 2, 300);
+      c.fillText(b.led_line_2 || "MAKE IT REAL", w / 2, 300);
       c.strokeStyle = "#fff8ed";
       c.lineWidth = 10;
       c.lineCap = "round";
@@ -936,17 +982,32 @@ export default function VirtualOffice3D({
       c.arc(w / 2 - 22, 385, 6, 0, Math.PI * 2);
       c.arc(w / 2 + 22, 385, 6, 0, Math.PI * 2);
       c.fill();
+    };
+    const boardTex = canvasTex(768, 512, (c, w, h) => {
+      drawBoard(c, w, h, brandingRef.current);
     });
+    const paintBoardTex = (b: WorkspaceSettings) => {
+      const canvas = boardTex.image as HTMLCanvasElement;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      drawBoard(ctx, canvas.width, canvas.height, b);
+      boardTex.needsUpdate = true;
+    };
 
-    const chalkTex = canvasTex(512, 640, (c, w, h) => {
+    const drawChalk = (
+      c: CanvasRenderingContext2D,
+      w: number,
+      h: number,
+      b: WorkspaceSettings,
+    ) => {
       c.fillStyle = "#26302b";
       c.fillRect(0, 0, w, h);
       c.fillStyle = "#f4f1e6";
       c.textAlign = "center";
       c.font = `700 96px 'Comic Sans MS','Segoe Print',${FONT}`;
-      c.fillText("Good", w / 2, 190);
-      c.fillText("Vibes", w / 2, 310);
-      c.fillText("Only", w / 2, 430);
+      c.fillText(b.chalk_line_1 || "Good", w / 2, 190);
+      c.fillText(b.chalk_line_2 || "Vibes", w / 2, 310);
+      c.fillText(b.chalk_line_3 || "Only", w / 2, 430);
       c.strokeStyle = "#f4f1e6";
       c.lineWidth = 7;
       c.lineCap = "round";
@@ -957,7 +1018,23 @@ export default function VirtualOffice3D({
       c.arc(w / 2 - 18, 505, 4, 0, Math.PI * 2);
       c.arc(w / 2 + 18, 505, 4, 0, Math.PI * 2);
       c.fill();
+    };
+    const chalkTex = canvasTex(512, 640, (c, w, h) => {
+      drawChalk(c, w, h, brandingRef.current);
     });
+    const paintChalkTex = (b: WorkspaceSettings) => {
+      const canvas = chalkTex.image as HTMLCanvasElement;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      drawChalk(ctx, canvas.width, canvas.height, b);
+      chalkTex.needsUpdate = true;
+    };
+
+    redrawBrandingRef.current = (b: WorkspaceSettings) => {
+      paintLogoTex(b);
+      paintBoardTex(b);
+      paintChalkTex(b);
+    };
 
     /* ---------- Platform kayu melayang ---------- */
     const floorGroup = new THREE.Group();
@@ -2202,6 +2279,7 @@ export default function VirtualOffice3D({
 
     return () => {
       logoImageDisposed = true;
+      redrawBrandingRef.current = null;
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", onVisibility);
       resizeObs.disconnect();

@@ -10,9 +10,29 @@ type Agent = {
   department: string;
   status: string;
   description: string | null;
+  preferred_provider_id?: string | null;
+  preferred_model?: string | null;
 };
 
-type AgentForm = Omit<Agent, "id" | "description"> & { description: string };
+type ProviderModel = {
+  id: string;
+  label?: string;
+  description?: string;
+};
+
+type ProviderConfig = {
+  provider_id: string;
+  name: string;
+  default_model: string;
+  custom_models_json?: string | null;
+  is_active: boolean;
+};
+
+type AgentForm = Omit<Agent, "id" | "description" | "preferred_provider_id" | "preferred_model"> & {
+  description: string;
+  preferred_provider_id: string;
+  preferred_model: string;
+};
 
 const EMPTY_FORM: AgentForm = {
   name: "",
@@ -20,6 +40,8 @@ const EMPTY_FORM: AgentForm = {
   department: "",
   status: "Standby",
   description: "",
+  preferred_provider_id: "",
+  preferred_model: "",
 };
 
 const BUSINESS_CAPABILITIES = [
@@ -59,6 +81,7 @@ const BUSINESS_CAPABILITIES = [
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [form, setForm] = useState<AgentForm>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,13 +111,22 @@ export default function AgentsPage() {
   useEffect(() => {
     let active = true;
 
-    fetch(`${API_URL}/agents`)
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) {
+    Promise.all([
+      fetch(`${API_URL}/agents`),
+      fetch(`${API_URL}/ai/providers`),
+    ])
+      .then(async ([agRes, pvRes]) => {
+        const data = await agRes.json();
+        if (!agRes.ok) {
           throw new Error(data.detail || "Gagal memuat daftar agent.");
         }
         if (active) setAgents(data);
+        if (pvRes.ok) {
+          const pvData = await pvRes.json();
+          if (active && Array.isArray(pvData.providers)) {
+            setProviders(pvData.providers);
+          }
+        }
       })
       .catch((cause: unknown) => {
         if (active) {
@@ -122,6 +154,8 @@ export default function AgentsPage() {
       department: agent.department,
       status: agent.status,
       description: agent.description || "",
+      preferred_provider_id: agent.preferred_provider_id || "",
+      preferred_model: agent.preferred_model || "",
     });
     setError("");
     setMessage("");
@@ -152,6 +186,8 @@ export default function AgentsPage() {
             role: form.role.trim(),
             department: form.department.trim(),
             description: form.description.trim() || null,
+            preferred_provider_id: form.preferred_provider_id || "",
+            preferred_model: form.preferred_model || "",
           }),
         },
       );
@@ -164,6 +200,7 @@ export default function AgentsPage() {
       setMessage(editingId ? "Agent berhasil diperbarui." : "Agent berhasil dibuat.");
       resetForm();
       await loadAgents();
+      window.dispatchEvent(new Event("vhq-branding-updated"));
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Gagal menyimpan agent.",
@@ -359,13 +396,93 @@ export default function AgentsPage() {
             <textarea
               id="agent-description"
               maxLength={10000}
-              rows={4}
+              rows={3}
               value={form.description || ""}
               onChange={(event) =>
                 setForm({ ...form, description: event.target.value })
               }
-              className="mb-5 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm"
+              className="mb-4 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm"
             />
+
+            {/* ROUTING ENDPOINT & MODEL AI */}
+            {(() => {
+              const targetProv = form.preferred_provider_id
+                ? providers.find((p) => p.provider_id === form.preferred_provider_id)
+                : providers.find((p) => p.is_active) || providers[0];
+              let provModels: ProviderModel[] = [];
+              if (targetProv?.custom_models_json) {
+                try {
+                  const parsed = JSON.parse(targetProv.custom_models_json);
+                  if (Array.isArray(parsed)) provModels = parsed;
+                } catch {
+                  // ignore
+                }
+              }
+              if (
+                targetProv?.default_model &&
+                !provModels.some((m) => m.id === targetProv.default_model)
+              ) {
+                provModels = [
+                  { id: targetProv.default_model, label: targetProv.default_model },
+                  ...provModels,
+                ];
+              }
+              return (
+                <div className="mb-5 rounded-xl border border-indigo-400/20 bg-indigo-500/5 p-3.5 space-y-3">
+                  <p className="text-xs font-bold text-indigo-200">
+                    🔀 Routing Endpoint & Model AI
+                  </p>
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400" htmlFor="agent-provider">
+                      Provider / Endpoint
+                    </label>
+                    <select
+                      id="agent-provider"
+                      value={form.preferred_provider_id}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          preferred_provider_id: e.target.value,
+                          preferred_model: "",
+                        })
+                      }
+                      className="w-full rounded-lg border border-white/10 bg-[#09090b] p-2.5 text-xs text-white"
+                    >
+                      <option value="">🌐 Ikut Pengaturan Global</option>
+                      {providers.map((p) => (
+                        <option key={p.provider_id} value={p.provider_id}>
+                          🔌 {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400" htmlFor="agent-model">
+                      Model AI Spesifik
+                    </label>
+                    <select
+                      id="agent-model"
+                      value={form.preferred_model}
+                      onChange={(e) =>
+                        setForm({ ...form, preferred_model: e.target.value })
+                      }
+                      className="w-full rounded-lg border border-white/10 bg-[#09090b] p-2.5 text-xs text-white"
+                    >
+                      <option value="">⚡ Auto (Sesuai Role / Default)</option>
+                      {provModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label || m.id}
+                        </option>
+                      ))}
+                      {form.preferred_model &&
+                        !provModels.some((m) => m.id === form.preferred_model) && (
+                          <option value={form.preferred_model}>{form.preferred_model}</option>
+                        )}
+                    </select>
+                  </div>
+                </div>
+              );
+            })()}
             <button
               disabled={saving}
               className="w-full rounded-lg bg-blue-600 p-3 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50"
@@ -404,6 +521,10 @@ export default function AgentsPage() {
                         <h3 className="font-semibold">{agent.name}</h3>
                         <span className="rounded-full bg-blue-400/10 px-2 py-1 text-xs text-blue-300">
                           {agent.status}
+                        </span>
+                        <span className="rounded-full border border-indigo-400/20 bg-indigo-500/10 px-2.5 py-0.5 text-[11px] text-indigo-200">
+                          {agent.preferred_provider_id ? `🔌 ${agent.preferred_provider_id}` : "🌐 Global"} ·{" "}
+                          {agent.preferred_model || "⚡ Auto"}
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-slate-400">

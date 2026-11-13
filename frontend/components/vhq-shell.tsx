@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { API_URL } from "@/lib/api";
+import {
+  API_URL,
+  DEFAULT_WORKSPACE_SETTINGS,
+  resolveLogoUrl,
+  type WorkspaceSettings,
+} from "@/lib/api";
 
 type SidebarAgent = {
   id: number;
@@ -36,15 +40,19 @@ export default function VhqShell({
   const [agents, setAgents] = useState<SidebarAgent[]>([]);
   const [projectCount, setProjectCount] = useState<number>(0);
   const [taskCount, setTaskCount] = useState<number>(0);
+  const [branding, setBranding] = useState<WorkspaceSettings>(
+    DEFAULT_WORKSPACE_SETTINGS,
+  );
 
   useEffect(() => {
     let active = true;
     const loadSidebarStats = async () => {
       try {
-        const [agRes, prRes, tkRes] = await Promise.all([
+        const [agRes, prRes, tkRes, wsRes] = await Promise.all([
           fetch(`${API_URL}/agents`),
           fetch(`${API_URL}/projects`),
           fetch(`${API_URL}/tasks`),
+          fetch(`${API_URL}/workspace/settings`),
         ]);
         if (!active) return;
         if (agRes.ok) {
@@ -59,14 +67,23 @@ export default function VhqShell({
           const tkData = await tkRes.json();
           if (Array.isArray(tkData)) setTaskCount(tkData.length);
         }
+        if (wsRes.ok) {
+          const wsData = await wsRes.json();
+          if (wsData?.office_name) setBranding(wsData);
+        }
       } catch {
         // ignore
       }
     };
+    const handleBrandingEvent = () => {
+      void loadSidebarStats();
+    };
     void loadSidebarStats();
+    window.addEventListener("vhq-branding-updated", handleBrandingEvent);
     const timer = setInterval(loadSidebarStats, 12000);
     return () => {
       active = false;
+      window.removeEventListener("vhq-branding-updated", handleBrandingEvent);
       clearInterval(timer);
     };
   }, []);
@@ -131,19 +148,18 @@ export default function VhqShell({
       {/* MOBILE HEADER */}
       <header className="md:hidden flex items-center justify-between border-b border-white/10 bg-[#131316] px-4 py-3 sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
-          <Image
-            src="/solusi-macro-logo.png"
-            alt="Logo Solusi Macro"
-            width={40}
-            height={40}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={resolveLogoUrl(branding.logo_url)}
+            alt={`Logo ${branding.office_name}`}
             className="h-8 w-8 rounded-lg object-cover"
           />
           <div>
             <span className="text-sm font-bold tracking-wide block">
-              Solusi Macro
+              {branding.office_name}
             </span>
             <span className="text-[10px] text-slate-400 block">
-              Virtual Office · AI Team
+              {branding.office_badge}
             </span>
           </div>
         </div>
@@ -193,19 +209,18 @@ export default function VhqShell({
         <div className="space-y-4">
           {/* BRAND HEADER */}
           <Link href="/" className="flex items-center gap-3 px-1">
-            <Image
-              src="/solusi-macro-logo.png"
-              alt="Logo Solusi Macro"
-              width={48}
-              height={48}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={resolveLogoUrl(branding.logo_url)}
+              alt={`Logo ${branding.office_name}`}
               className="h-10 w-10 rounded-lg object-cover"
             />
             <div>
-              <h1 className="text-base font-bold tracking-tight text-white leading-tight">
-                Solusi Macro
+              <h1 className="text-base font-bold tracking-tight text-white leading-tight truncate max-w-[140px]">
+                {branding.office_name}
               </h1>
-              <p className="text-[11px] text-slate-400">
-                Virtual Office · AI Team
+              <p className="text-[11px] text-slate-400 truncate max-w-[140px]">
+                {branding.office_badge}
               </p>
             </div>
           </Link>
@@ -267,6 +282,12 @@ export default function VhqShell({
               {agents.slice(0, 6).map((agent, idx) => {
                 const av = AGENT_AVATARS[idx % AGENT_AVATARS.length];
                 const isOnline = agent.status !== "Offline";
+                const isDefaultRole =
+                  agent.name.toUpperCase() === "AI CEO" ||
+                  ["Engineer", "Analyst", "Secretary", "QA", "Social"].some((k) =>
+                    agent.name.includes(k),
+                  );
+                const displayName = isDefaultRole ? av.alias : agent.name;
                 return (
                   <Link
                     key={agent.id}
@@ -277,11 +298,11 @@ export default function VhqShell({
                       <div
                         className={`h-8 w-8 shrink-0 rounded-full border ${av.color} flex items-center justify-center text-xs font-bold text-white`}
                       >
-                        {av.alias[0]}
+                        {displayName[0]?.toUpperCase() || av.alias[0]}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-slate-200 truncate flex items-center gap-1">
-                          <span>{av.alias}</span>
+                          <span>{displayName}</span>
                           {av.crown && <span title="AI CEO">👑</span>}
                         </p>
                         <p className="text-[10px] text-slate-500 truncate max-w-[92px]">

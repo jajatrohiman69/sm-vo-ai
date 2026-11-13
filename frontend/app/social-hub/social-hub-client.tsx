@@ -375,8 +375,14 @@ export default function SocialHubClient() {
   const [verifyingPlatform, setVerifyingPlatform] =
     useState<PlatformKey | null>(null);
 
+  // Hub View Navigation State
+  const [hubView, setHubView] = useState<"studio" | "analytics" | "api-setup">("studio");
+
   // Generator Form State
   const [selectedModel, setSelectedModel] = useState<string>("auto");
+  const [availableModels, setAvailableModels] = useState<
+    { id: string; label: string; description?: string }[]
+  >([]);
   const [lastModelUsed, setLastModelUsed] = useState<string>("");
   const [topic, setTopic] = useState("");
   const [tone, setTone] = useState(
@@ -512,6 +518,14 @@ export default function SocialHubClient() {
 
   useEffect(() => {
     let active = true;
+    fetch(`${API_URL}/ai/models`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((mData) => {
+        if (active && Array.isArray(mData?.models)) {
+          setAvailableModels(mData.models);
+        }
+      })
+      .catch(() => {});
     requestHubData()
       .then(
         ({ accData, postsData, completedTasks, projectsData, metricsData }) => {
@@ -902,6 +916,7 @@ export default function SocialHubClient() {
         const created = data.post as SocialPost;
         setPosts((prev) => [created, ...prev]);
         selectPostForEditing(created);
+        setHubView("studio");
       }
 
       setSuccessMessage(
@@ -1238,100 +1253,97 @@ export default function SocialHubClient() {
   return (
     <main className="p-6 md:p-8 flex-1">
       {/* HEADER */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-5">
         <div>
-          <div className="flex items-center gap-2.5">
-            <span className="rounded-lg bg-blue-500/20 border border-blue-400/30 px-2.5 py-1 text-xs font-semibold text-blue-300">
-              DIRECT NATIVE API + AUTO SCHEDULER
-            </span>
-            <span className="text-xs text-slate-400">
-              Facebook Page · Instagram · YouTube · TikTok · Threads
-            </span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold mt-2">
-            Omnichannel Social Hub
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+            📡 Omnichannel Social Hub
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Generate konten 5 platform, susun utas Threads berantai dengan rapi,
-            dan publish langsung atau jadwalkan tayang otomatis.
+          <p className="text-slate-400 text-xs md:text-sm mt-1">
+            Buat konten lintas 5 platform sekaligus, jadwalkan otomatis, atau kelola integrasi API sosial media.
           </p>
+
+          {/* CLEAN SUB-NAVIGATION TABS */}
+          <div className="flex flex-wrap gap-2 mt-4">
+            <button
+              type="button"
+              onClick={() => setHubView("studio")}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                hubView === "studio"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                  : "border border-white/10 bg-[#131316] text-slate-400 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              ✍️ Studio Konten ({posts.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setHubView("analytics")}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                hubView === "analytics"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                  : "border border-white/10 bg-[#131316] text-slate-400 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              🔥 Riset & Winning Copy ({topMetrics.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setHubView("api-setup")}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition flex items-center gap-2 ${
+                hubView === "api-setup"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                  : "border border-white/10 bg-[#131316] text-slate-400 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              <span>🔌 Setup API Sosmed</span>
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                  connectedCount > 0
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "bg-white/10 text-slate-400"
+                }`}
+              >
+                {connectedCount}/5
+              </span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* AI MODEL SELECTOR (5-MODEL SMART ROUTING) */}
-          <div className="flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs">
-            <span className="font-semibold text-amber-300">🧠 Model AI:</span>
+        <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center">
+          {/* DYNAMIC AI MODEL SELECTOR */}
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#131316] px-3 py-2 text-xs">
+            <span className="text-slate-400">🧠 Model:</span>
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="bg-[#09090b] text-white font-semibold rounded-lg border border-amber-400/30 px-2.5 py-1 text-xs focus:outline-none focus:border-amber-400"
-              title="Smart Multi-Model otomatis memetakan 5 model OCTA sesuai tugas paling optimal"
+              className="bg-[#09090b] text-white font-semibold rounded-lg border border-white/10 px-2.5 py-1 text-xs focus:outline-none focus:border-indigo-400 max-w-[200px]"
             >
-              <option value="auto">
-                ⚡ Smart Multi-Model (5 Model Optimal per Task)
-              </option>
-              <option value="claude-opus-5-5">
-                🏆 Claude Opus 5.5 (Viral Copywriting & Strategi)
-              </option>
-              <option value="claude-sonnet-5">
-                🚀 Claude Sonnet 5 (5 Sosmed & Utas Threads)
-              </option>
-              <option value="gemini-3.1-pro-preview">
-                🧠 Gemini 3.1 Pro (Kalender 7 Hari & Planner)
-              </option>
-              <option value="deepseek-v4.1-flash">
-                ⚡ DeepSeek v4.1 Flash (Magic Polish & Revisi Kilat)
-              </option>
-              <option value="gpt-5.4-nano">
-                🪶 GPT-5.4 Nano (Ultra Cepat & Ringan)
-              </option>
+              {availableModels.length > 0 ? (
+                availableModels.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label || m.id}
+                  </option>
+                ))
+              ) : (
+                <option value="auto">⚡ Auto (Provider Aktif)</option>
+              )}
             </select>
             {lastModelUsed && (
-              <span className="rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
-                Aktif: {lastModelUsed}
+              <span className="rounded-md bg-indigo-500/15 border border-indigo-400/20 px-2 py-0.5 text-[10px] font-medium text-indigo-200">
+                {lastModelUsed}
               </span>
             )}
           </div>
-          <div className="rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-2.5 text-xs">
-            <span className="text-purple-200">⏰ Terjadwal Otomatis: </span>
-            <span className="font-bold text-white">{scheduledCount} Post</span>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-[#131316] px-4 py-2.5 text-xs">
-            <span className="text-slate-400">Status Koneksi: </span>
-            <span className="font-semibold text-emerald-300">
-              {connectedCount} / 5 Platform Terhubung
-            </span>
+
+          <div className="rounded-xl border border-white/10 bg-[#131316] px-3.5 py-2 text-xs text-slate-300">
+            ⏰ <span className="font-bold text-white">{scheduledCount}</span> Terjadwal
           </div>
         </div>
       </div>
 
-      {/* SMART MULTI-MODEL ROUTING BAR */}
-      {selectedModel === "auto" && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#131316]/90 px-4 py-2.5 text-[11px] text-slate-300">
-          <span className="font-bold text-amber-300">
-            ⚡ Smart Multi-Model Routing Aktif:
-          </span>
-          <span className="rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 py-0.5 text-amber-200">
-            🔥 Replikasi Engagement Viral → <b>claude-opus-5-5</b>
-          </span>
-          <span className="rounded-lg border border-blue-400/25 bg-blue-500/10 px-2 py-0.5 text-blue-200">
-            ✨ Konten 5 Sosmed & Utas → <b>claude-sonnet-5</b>
-          </span>
-          <span className="rounded-lg border border-purple-400/25 bg-purple-500/10 px-2 py-0.5 text-purple-200">
-            🗓️ Kalender 3–7 Hari → <b>gemini-3.1-pro-preview</b>
-          </span>
-          <span className="rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-emerald-200">
-            🪄 Magic Polish / Revisi → <b>deepseek-v4.1-flash</b>
-          </span>
-          <span className="rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-2 py-0.5 text-cyan-200">
-            🪶 Instant Backup → <b>gpt-5.4-nano</b>
-          </span>
-        </div>
-      )}
-
       {/* ALERTS */}
       {error && (
-        <div className="mt-6 rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200 flex items-center justify-between">
+        <div className="mt-5 rounded-xl border border-red-400/30 bg-red-500/10 p-3.5 text-xs text-red-200 flex items-center justify-between">
           <span>⚠️ {error}</span>
           <button
             onClick={() => setError("")}
@@ -1343,7 +1355,7 @@ export default function SocialHubClient() {
       )}
 
       {successMessage && (
-        <div className="mt-6 rounded-xl border border-green-400/30 bg-green-500/10 p-4 text-sm text-green-200 flex items-center justify-between">
+        <div className="mt-5 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-200 flex items-center justify-between">
           <span>✅ {successMessage}</span>
           <button
             onClick={() => setSuccessMessage("")}
@@ -1354,14 +1366,20 @@ export default function SocialHubClient() {
         </div>
       )}
 
-      {/* 5 DIRECT PLATFORM CONNECTION CARDS */}
-      <section className="mt-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            🔌 Koneksi Langsung Masing-Masing Sosial Media (Direct API)
-          </h2>
-          <span className="text-xs text-slate-500">
-            Klik &ldquo;⚙️ Setup API&rdquo; pada platform yang ingin dihubungkan
+      {/* VIEW 3: SETUP API SOSMED (TERPISAH) */}
+      {hubView === "api-setup" && (
+      <section className="mt-6 space-y-5">
+        <div className="rounded-2xl border border-indigo-400/20 bg-indigo-500/5 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-bold text-white">
+              🔌 Pengaturan Koneksi Direct API Sosial Media
+            </h2>
+            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+              Hubungkan akun resmi Facebook Page, Instagram Business, Threads, YouTube Data API, dan TikTok Content Posting API agar agen AI bisa langsung mempublish & menjadwalkan postingan tanpa pihak ketiga.
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+            {connectedCount} dari 5 Platform Aktif
           </span>
         </div>
 
@@ -1445,9 +1463,11 @@ export default function SocialHubClient() {
           })}
         </div>
       </section>
+      )}
 
-      {/* AI ENGAGEMENT INTELLIGENCE & WINNING COPYWRITING ENGINE */}
-      <section className="mt-8 rounded-2xl border border-amber-400/25 bg-gradient-to-br from-[#131316] to-[#131316] p-6">
+      {/* VIEW 2: AI ENGAGEMENT INTELLIGENCE & WINNING COPYWRITING ENGINE */}
+      {hubView === "analytics" && (
+      <section className="mt-6 rounded-2xl border border-white/10 bg-[#131316] p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -1646,6 +1666,7 @@ export default function SocialHubClient() {
           })}
         </div>
       </section>
+      )}
 
       {/* MODAL ADD WINNING POST / METRIC */}
       {showAddMetricModal && (
@@ -1925,8 +1946,9 @@ export default function SocialHubClient() {
         </div>
       )}
 
-      {/* MAIN WORKSPACE GRID */}
-      <div className="mt-8 grid grid-cols-1 xl:grid-cols-12 gap-6">
+      {/* VIEW 1: MAIN WORKSPACE GRID */}
+      {hubView === "studio" && (
+      <div className="mt-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* LEFT COLUMN: AI GENERATOR + QUEUE LIST (5 COLS) */}
         <div className="xl:col-span-5 space-y-6">
           {/* AI OMNICHANNEL GENERATOR */}
@@ -2950,6 +2972,7 @@ export default function SocialHubClient() {
           )}
         </div>
       </div>
+      )}
     </main>
   );
 }

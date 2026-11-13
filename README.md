@@ -39,14 +39,21 @@ Solusi Macro Virtual HQ (VHQ) adalah platform manajemen kerja kolaboratif berbas
 * **Ekstraksi Modul VBA (`.bas`)**: Setiap blok kode VBA Macro yang dirancang agen otomatis dikonversi menjadi file modul `.bas` siap pakai.
 * **One-Click Download**: File hasil rancangan agen dapat langsung diunduh dari modal hasil pekerjaan atau task board.
 
-### 5. ⚡ AI Provider & Endpoint Hub (`/settings`)
-* **Multi-Provider Realtime Switching**: Pindah provider AI (OCTA Telkomsel, GarapinAja/Custom OpenAI, Google Gemini Direct, Groq, OpenRouter, atau Ollama Lokal) langsung dari dashboard web tanpa restart server dan tanpa ubah file `.env`.
-* **Live Connection Test & Latency Monitor**: Uji keaktifan endpoint beserta waktu respons (ms).
-* **Auto-Discovery Models**: Endpoint `/models` memindai daftar model yang didukung oleh server provider secara otomatis dalam 1 klik.
+### 5. ⚡ AI Provider & Endpoint Hub (`/settings`) & Per-Agent Routing
+* **Multi-Provider Realtime Switching & CRUD**: Tambah, edit, aktifkan, atau hapus provider AI (Custom OpenAI-Compatible, **9Router**, OCTA Telkomsel, Google Gemini Direct, Groq, OpenRouter, atau Ollama Lokal) langsung dari dashboard web tanpa restart server.
+* **Per-Agent Model & Endpoint Routing**: Setiap agen AI dapat diarahkan menggunakan endpoint provider dan model spesifik sesuai kebutuhan tugasnya melalui menu **Kelola Tim (`/agents`)**.
+* **Live Connection Test & Auto-Discovery Models**: Uji keaktifan endpoint beserta latensi (ms) dan pindai daftar model yang didukung (`/models`) secara otomatis dalam 1 klik.
 
-### 6. 📡 Omnichannel Social Media Growth Studio (`/social`)
-* Perencanaan dan pembuatan konten lintas platform (Facebook Page, Instagram Feeds/Reels, YouTube Shorts, TikTok, dan Threads).
-* Kalender posting otomatis dengan status jadwal, pilar konten, dan pratinjau layout postingan.
+### 6. 💬 Direct Agent Room (`/ai-chat`)
+* **Ruang Diskusi Langsung**: Chat interaktif dengan masing-masing agen AI dengan konteks seluruh VHQ atau proyek tertentu.
+* **Sticky Header & Compact Composer**: Header dan bar input tetap diam saat riwayat bubble chat di-scroll, dilengkapi unggah lampiran (`.xlsx`, `.xlsm`, `.csv`, gambar).
+
+### 7. 👥 Kelola Tim & Kustomisasi Agen (`/agents`)
+* **Manajemen Agen Terpusat**: Kustomisasi nama, jabatan/role, deskripsi keahlian, serta routing provider & model AI masing-masing agen dalam satu halaman.
+
+### 8. 📡 Omnichannel Social Hub (`/social-hub`)
+* **Workspace Konten & Setup API Terpisah**: Pemisahan area operasional konten/kalender dari konfigurasi API platform sosial media agar tampilan lebih bersih dan fokus.
+* **Multi-Platform Growth Studio**: Perencanaan dan pembuatan konten lintas platform (Facebook Page, Instagram Feeds/Reels, YouTube Shorts, TikTok, dan Threads) lengkap dengan kalender jadwal.
 
 ---
 
@@ -152,15 +159,14 @@ cd sm-vo-ai
 
 ---
 
-## ⚙️ Konfigurasi Provider AI
+## ⚙️ Konfigurasi Provider AI & Routing Agen
 
 Setelah aplikasi terbuka di `http://localhost:3000`:
-1. Klik menu **Pengaturan AI** (atau navigasi langsung ke `http://localhost:3000/settings`).
-2. Pilih provider yang ingin Anda gunakan (tersedia preset **Custom OpenAI-Compatible**, **OCTA Telkomsel**, **Google Gemini**, **Groq**, dan **OpenRouter**).
-3. Masukkan **Base URL** dan **API Key / Token** Anda.
-4. Klik tombol **"🔍 Tes Koneksi & Deteksi Model"**.
-5. Klik **"⚡ Pakai N Model yang Terdeteksi"**, pilih model default, lalu klik **"Simpan Perubahan"** dan **"Jadikan Provider Aktif"**.
-6. Semua agen AI sekarang siap menerima instruksi dan mengeksekusi tugas secara instan!
+1. Klik menu **Pengaturan AI** (atau navigasi ke `http://localhost:3000/settings`).
+2. Pilih preset atau tambahkan provider baru (**Custom OpenAI-Compatible**, **9Router**, **OCTA Telkomsel**, **Google Gemini**, **Groq**, **OpenRouter**, atau **Ollama**). Anda juga dapat menghapus provider kustom yang sudah tidak dipakai.
+3. Masukkan **Base URL** dan **API Key / Token** Anda, lalu klik **"🔍 Tes Koneksi & Deteksi Model"**.
+4. Pilih model default, klik **"Simpan Perubahan"**, dan aktifkan provider utama.
+5. *(Opsional)* Buka menu **Kelola Tim** (`/agents`) untuk mengkustomisasi profil agen serta mengarahkan setiap agen ke provider & model AI tertentu secara terpisah.
 
 ---
 
@@ -170,7 +176,8 @@ Setelah aplikasi terbuka di `http://localhost:3000`:
 solusi-macro-vhq/
 ├── backend/
 │   ├── .env.example              # Template variabel lingkungan
-│   ├── ai_service.py             # Multi-provider routing, dynamic models, prompts
+│   ├── ai_service.py             # Multi-provider routing, per-agent model, prompts
+│   ├── auth.py                   # Autentikasi & manajemen sesi
 │   ├── database.py               # Koneksi database SQLAlchemy
 │   ├── excel_vba_service.py      # Parser file, builder Excel .xlsx, ekstrak .bas VBA
 │   ├── main.py                   # REST API endpoints FastAPI
@@ -184,10 +191,17 @@ solusi-macro-vhq/
 │   │   ├── layout.tsx            # Root layout Next.js
 │   │   ├── page.tsx              # Halaman beranda utama
 │   │   ├── home-client.tsx       # State manajemen beranda & delegasi agen
+│   │   ├── agents/page.tsx       # Kelola Tim, Profil & Routing Model per Agen
+│   │   ├── ai-chat/page.tsx      # Direct Agent Room (Chat Langsung dengan Agen)
+│   │   ├── projects/page.tsx     # Manajemen Proyek
 │   │   ├── settings/page.tsx     # Hub Pengaturan Provider & Endpoint AI
-│   │   └── social/page.tsx       # Studio Konten & Kalender Media Sosial
+│   │   ├── social-hub/           # Omnichannel Social Hub & Setup API
+│   │   ├── task-planner/page.tsx # Perencanaan & Breakdown Tugas
+│   │   ├── tasks/page.tsx        # Task Board & Deliverables
+│   │   └── virtual-office/page.tsx # Ruang Kantor Virtual 3D
 │   ├── components/
-│   │   ├── vhq-shell.tsx         # Navbar, navigasi, dan indikator status AI
+│   │   ├── auth-guard.tsx        # Proteksi rute autentikasi
+│   │   ├── vhq-shell.tsx         # Sidebar, navigasi, dan indikator status AI
 │   │   ├── virtual-office-3d.tsx # Engine 3D Pixar Studio Diorama (Three.js)
 │   │   └── markdown-deliverable.tsx # Renderer markdown output agen
 │   └── package.json              # Skrip & dependensi npm

@@ -36,6 +36,7 @@ from models import (
     SocialPost,
     SocialPostMetric,
     AIProviderConfig,
+    WorkspaceSettings,
 )
 
 from ai_service import (
@@ -184,6 +185,8 @@ class AgentUpdate(BaseModel):
     )
     status: Optional[Literal["Online", "Standby", "Offline"]] = None
     description: Optional[str] = Field(default=None, max_length=10000)
+    preferred_provider_id: Optional[str] = Field(default=None, max_length=120)
+    preferred_model: Optional[str] = Field(default=None, max_length=200)
 
 
 class FounderLoginRequest(BaseModel):
@@ -357,6 +360,8 @@ def serialize_agent(agent: Optional[Agent]):
         "department": agent.department,
         "status": agent.status,
         "description": agent.description,
+        "preferred_provider_id": agent.preferred_provider_id,
+        "preferred_model": agent.preferred_model,
     }
 
 
@@ -734,6 +739,7 @@ def execute_approved_plan(task_ids: list[int]):
                     if part
                 ),
                 image_urls=image_urls,
+                db_session=db,
             )
 
             task.result = result
@@ -930,6 +936,8 @@ def update_agent(
 
     previous_name = agent.name
     for field, value in changes.items():
+        if field in ("preferred_provider_id", "preferred_model") and isinstance(value, str):
+            value = value.strip() or None
         setattr(agent, field, value)
 
     create_activity_log(
@@ -2138,6 +2146,11 @@ def delete_provider(
         raise HTTPException(status_code=400, detail="Tidak dapat menghapus provider yang sedang aktif.")
 
     name = target.name
+    # Reset agen yang sebelumnya diarahkan ke provider yang dihapus
+    db.query(Agent).filter(Agent.preferred_provider_id == provider_id).update(
+        {"preferred_provider_id": None, "preferred_model": None},
+        synchronize_session=False,
+    )
     db.delete(target)
     db.commit()
 
@@ -2407,14 +2420,32 @@ ATURAN DISKUSI DENGAN FOUNDER:
         + ("\n\nKONTEKS FILE LAMPIRAN:\n" + attachment_context if attachment_context else "")
     )
 
+    agent_provider_id = (
+        getattr(target_agent, "preferred_provider_id", None)
+        if target_agent
+        else None
+    )
+    agent_preferred_model = (
+        getattr(target_agent, "preferred_model", None)
+        if target_agent
+        else None
+    )
+    effective_chat_model = (
+        payload.model
+        if (payload.model and payload.model.strip() and payload.model.strip() != "auto")
+        else agent_preferred_model
+    )
+
     try:
         response = ask_claude(
             message=message_for_ai,
             system_prompt=system_prompt,
             history=history,
-            model=payload.model,
+            model=effective_chat_model,
             agent_name=responder_label,
             image_urls=image_urls,
+            db_session=db,
+            provider_id=agent_provider_id,
         )
         response, _ = extract_and_compile_artifacts(
             response,
@@ -2444,9 +2475,11 @@ ATURAN DISKUSI DENGAN FOUNDER:
             "session_id": payload.session_id,
             "agent_name": responder_label,
             "model_used": resolve_ai_model(
-                payload.model,
+                effective_chat_model,
                 task_type="ceo_chat" if responder_label.upper() == "AI CEO" else "agent_chat",
                 agent_role_or_name=responder_label,
+                db_session=db,
+                provider_id=agent_provider_id,
             ),
             "message": response,
             "created_at": assistant_message.created_at,
@@ -4685,11 +4718,143 @@ def analyze_and_replicate_winning_endpoint(
     }
 
 
+class WorkspaceSettingsUpdate(BaseModel):
+    office_name: Optional[str] = None
+    office_subtitle: Optional[str] = None
+    office_badge: Optional[str] = None
+    logo_url: Optional[str] = None
+    led_line_1: Optional[str] = None
+    led_line_2: Optional[str] = None
+    chalk_line_1: Optional[str] = None
+    chalk_line_2: Optional[str] = None
+    chalk_line_3: Optional[str] = None
+
+
+def _get_or_create_workspace_settings(db: Session) -> WorkspaceSettings:
+    settings = db.query(WorkspaceSettings).first()
+    if not settings:
+        settings = WorkspaceSettings()
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+    return settings
+
+
+def _serialize_workspace_settings(s: WorkspaceSettings) -> dict[str, Any]:
+    return {
+        "id": s.id,
+        "office_name": s.office_name or "Solusi Macro",
+        "office_subtitle": s.office_subtitle or "Excel · Dashboard · Otomasi",
+        "office_badge": s.office_badge or "Virtual Office · AI Team",
+        "logo_url": s.logo_url or "/solusi-macro-logo.png",
+        "led_line_1": s.led_line_1 or "DREAM IT",
+        "led_line_2": s.led_line_2 or "MAKE IT REAL",
+        "chalk_line_1": s.chalk_line_1 or "Good",
+        "chalk_line_2": s.chalk_line_2 or "Vibes",
+        "chalk_line_3": s.chalk_line_3 or "Only",
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+    }
+
+
+@app.get("/workspace/settings")
+def get_workspace_settings(db: Session = Depends(get_db)):
+    settings = _get_or_create_workspace_settings(db)
+    return _serialize_workspace_settings(settings)
+
+
+@app.put("/workspace/settings")
+def update_workspace_settings(
+    payload: WorkspaceSettingsUpdate,
+    db: Session = Depends(get_db),
+):
+    settings = _get_or_create_workspace_settings(db)
+    changes = payload.model_dump(exclude_unset=True)
+    for field, value in changes.items():
+        if value is not None:
+            setattr(settings, field, value.strip())
+    create_activity_log(
+        db,
+        "Workspace Branding Updated",
+        f"Pengaturan branding & kantor '{settings.office_name}' diperbarui.",
+    )
+    db.commit()
+    db.refresh(settings)
+    return {"success": True, "settings": _serialize_workspace_settings(settings)}
+
+
+@app.post("/workspace/logo")
+async def upload_workspace_logo(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    filename = file.filename or "logo.png"
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in {".png", ".jpg", ".jpeg", ".webp", ".svg"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Format logo harus berupa gambar (.png, .jpg, .jpeg, .webp, .svg).",
+        )
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="Ukuran file logo maksimal 5MB.",
+        )
+
+    upload_dir = os.path.join(os.path.dirname(__file__), "uploaded_files")
+    os.makedirs(upload_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d%H%M%S")
+    safe_filename = f"custom_logo_{ts}{ext}"
+    file_path = os.path.join(upload_dir, safe_filename)
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    logo_url = f"/workspace/logo/{safe_filename}"
+    settings = _get_or_create_workspace_settings(db)
+    settings.logo_url = logo_url
+    create_activity_log(
+        db,
+        "Workspace Logo Updated",
+        f"Logo kantor custom diunggah: {safe_filename}",
+    )
+    db.commit()
+    db.refresh(settings)
+    return {
+        "success": True,
+        "logo_url": logo_url,
+        "settings": _serialize_workspace_settings(settings),
+    }
+
+
+@app.get("/workspace/logo/{filename}")
+def get_workspace_logo(filename: str):
+    if not re.match(r"^[a-zA-Z0-9_.-]+$", filename):
+        raise HTTPException(status_code=400, detail="Nama file tidak valid.")
+    upload_dir = os.path.join(os.path.dirname(__file__), "uploaded_files")
+    file_path = os.path.join(upload_dir, filename)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Logo tidak ditemukan.")
+    return FileResponse(file_path)
+
+
 # APPLICATION STARTUP
 # ============================================================
 
 @app.on_event("startup")
 def startup_event():
+    from sqlalchemy import inspect, text
+    try:
+        Base.metadata.create_all(bind=engine)
+        inspector = inspect(engine)
+        agent_cols = {col["name"] for col in inspector.get_columns("agents")}
+        with engine.begin() as conn:
+            if "preferred_provider_id" not in agent_cols:
+                conn.execute(text("ALTER TABLE agents ADD COLUMN preferred_provider_id VARCHAR"))
+            if "preferred_model" not in agent_cols:
+                conn.execute(text("ALTER TABLE agents ADD COLUMN preferred_model VARCHAR"))
+    except Exception as exc:
+        print(f"[Migration warning] {exc}")
+
     print("==========================================")
     print(" SOLUSI MACRO VIRTUAL HQ")
     print(" Backend API is running")

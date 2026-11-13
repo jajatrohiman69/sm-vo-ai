@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { API_URL } from "@/lib/api";
+import {
+  API_URL,
+  DEFAULT_WORKSPACE_SETTINGS,
+  resolveLogoUrl,
+  type WorkspaceSettings,
+} from "@/lib/api";
 
 type ProviderModel = {
   id: string;
@@ -25,10 +30,19 @@ type ProviderConfig = {
 };
 
 export default function AISettingsPage() {
+  const [activeTab, setActiveTab] = useState<"providers" | "branding">("providers");
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
   const [toastMessage, setToastMessage] = useState<string>("");
   const [toastType, setToastType] = useState<"success" | "error">("success");
+
+  // Branding state
+  const [branding, setBranding] = useState<WorkspaceSettings>(
+    DEFAULT_WORKSPACE_SETTINGS,
+  );
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   // Selected provider to edit
   const [selectedProvider, setSelectedProvider] = useState<ProviderConfig | null>(null);
@@ -76,7 +90,10 @@ export default function AISettingsPage() {
     let isMounted = true;
     async function fetchInitialProviders() {
       try {
-        const res = await fetch(`${API_URL}/ai/providers`);
+        const [res, wsRes] = await Promise.all([
+          fetch(`${API_URL}/ai/providers`),
+          fetch(`${API_URL}/workspace/settings`),
+        ]);
         if (!res.ok) throw new Error("Gagal mengambil daftar provider AI.");
         const data = await res.json();
         if (!Array.isArray(data.providers)) {
@@ -92,6 +109,11 @@ export default function AISettingsPage() {
 
         if (current) {
           selectForEdit(current);
+        }
+
+        if (wsRes.ok) {
+          const wsData = await wsRes.json();
+          if (wsData?.office_name && isMounted) setBranding(wsData);
         }
       } catch (err) {
         if (!isMounted) return;
@@ -242,6 +264,99 @@ export default function AISettingsPage() {
     }
   }
 
+  async function handleDeleteProvider(providerId: string, providerName: string) {
+    if (!window.confirm(`Hapus provider '${providerName}'? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/ai/providers/${providerId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Gagal menghapus provider.");
+      showToast(`🗑️ Provider '${providerName}' berhasil dihapus.`);
+
+      const resList = await fetch(`${API_URL}/ai/providers`);
+      if (resList.ok) {
+        const listData = await resList.json();
+        const updatedList: ProviderConfig[] = listData.providers || [];
+        setProviders(updatedList);
+        if (selectedProvider?.provider_id === providerId) {
+          const next = updatedList.find((p) => p.is_active) || updatedList[0] || null;
+          if (next) selectForEdit(next);
+          else setSelectedProvider(null);
+        }
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal menghapus provider.", "error");
+    }
+  }
+
+  async function handleSaveBranding(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingBranding(true);
+    try {
+      const res = await fetch(`${API_URL}/workspace/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(branding),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Gagal menyimpan branding kantor.");
+      if (data.settings) setBranding(data.settings);
+      window.dispatchEvent(new Event("vhq-branding-updated"));
+      showToast("✅ Branding & teks kantor 3D berhasil diperbarui!");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal menyimpan branding.", "error");
+    } finally {
+      setSavingBranding(false);
+    }
+  }
+
+  async function handleUploadLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${API_URL}/workspace/logo`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Gagal mengunggah logo.");
+      if (data.settings) setBranding(data.settings);
+      window.dispatchEvent(new Event("vhq-branding-updated"));
+      showToast("🖼️ Logo kantor custom berhasil diunggah dan dipasang!");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal upload logo.", "error");
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  }
+
+  async function handleResetLogo() {
+    setSavingBranding(true);
+    try {
+      const res = await fetch(`${API_URL}/workspace/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logo_url: "/solusi-macro-logo.png" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Gagal mereset logo.");
+      if (data.settings) setBranding(data.settings);
+      window.dispatchEvent(new Event("vhq-branding-updated"));
+      showToast("🔄 Logo dikembalikan ke default.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Gagal reset logo.", "error");
+    } finally {
+      setSavingBranding(false);
+    }
+  }
+
   return (
     <div className="flex-1 bg-[#090b14] text-slate-100 min-h-screen p-6 md:p-10 flex flex-col gap-8">
       {/* HEADER SECTION */}
@@ -250,28 +365,55 @@ export default function AISettingsPage() {
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">⚙️</span>
             <h1 className="text-2xl font-black tracking-tight text-white">
-              AI Provider & Endpoint Hub
+              Pengaturan VHQ & AI Hub
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
-            Atur dan ganti endpoint API AI sesukamu (OCTA Telkomsel, OpenAI-Compatible, OpenRouter, Groq, Google Gemini, atau Ollama lokal). Ubah model & switch provider kapan saja tanpa restart server.
+            Atur endpoint API AI (OCTA, Gemini, OpenAI-Compatible, Groq, Ollama) serta kustomisasi nama kantor, logo brand, dan teks papan 3D langsung dari browser.
           </p>
+          {/* TAB SWITCHER */}
+          <div className="flex flex-wrap gap-2 mt-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab("providers")}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                activeTab === "providers"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25"
+                  : "border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              🔌 Provider & Endpoint AI
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("branding")}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                activeTab === "branding"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25"
+                  : "border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              🎨 Branding Kantor & Teks 3D
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 self-start md:self-center">
           <Link
-            href="/ai-chat"
+            href="/"
             className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs font-semibold text-slate-200 transition"
           >
-            💬 Buka Chat AI
+            🏢 Lihat 3D Office
           </Link>
-          <button
-            type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-500/25 transition"
-          >
-            ＋ Tambah Provider Baru
-          </button>
+          {activeTab === "providers" && (
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-500/25 transition"
+            >
+              ＋ Tambah Provider Baru
+            </button>
+          )}
         </div>
       </div>
 
@@ -289,6 +431,7 @@ export default function AISettingsPage() {
       )}
 
       {/* MAIN TWO-COLUMN WORKBENCH */}
+      {activeTab === "providers" && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* LEFT COLUMN: PROVIDERS LIST (4 COLS) */}
         <div className="lg:col-span-5 flex flex-col gap-4">
@@ -341,16 +484,29 @@ export default function AISettingsPage() {
                         ⚡ AKTIF
                       </span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSwitchActive(p.provider_id);
-                        }}
-                        className="shrink-0 rounded-xl border border-white/10 bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-500/30 px-3 py-1 text-[11px] font-medium text-slate-300 transition"
-                      >
-                        Aktifkan
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSwitchActive(p.provider_id);
+                          }}
+                          className="rounded-xl border border-white/10 bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-500/30 px-2.5 py-1 text-[11px] font-medium text-slate-300 transition"
+                        >
+                          Aktifkan
+                        </button>
+                        <button
+                          type="button"
+                          title={`Hapus ${p.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleDeleteProvider(p.provider_id, p.name);
+                          }}
+                          className="rounded-xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/25 px-2 py-1 text-[11px] text-red-300 transition"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -391,13 +547,27 @@ export default function AISettingsPage() {
                 </div>
 
                 {!selectedProvider.is_active && (
-                  <button
-                    type="button"
-                    onClick={() => handleSwitchActive(selectedProvider.provider_id)}
-                    className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg transition"
-                  >
-                    ⚡ Pasang Jadi Provider Utama
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchActive(selectedProvider.provider_id)}
+                      className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg transition"
+                    >
+                      ⚡ Pasang Jadi Provider Utama
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleDeleteProvider(
+                          selectedProvider.provider_id,
+                          selectedProvider.name
+                        )
+                      }
+                      className="rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/25 px-3.5 py-2 text-xs font-bold text-red-300 transition"
+                    >
+                      🗑️ Hapus
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -560,6 +730,215 @@ export default function AISettingsPage() {
           )}
         </div>
       </div>
+      )}
+
+      {/* BRANDING KANTOR & NAMA AGEN TAB */}
+      {activeTab === "branding" && (
+        <div className="flex flex-col gap-8">
+          {/* SECTION 1: IDENTITAS & LOGO + TEKS 3D */}
+          <form onSubmit={handleSaveBranding} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* LEFT: IDENTITAS & LOGO */}
+            <div className="lg:col-span-6 rounded-3xl border border-white/10 bg-[#121422] p-6 shadow-xl space-y-5">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>🏢</span> Identitas & Logo Kantor
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Tampil di sidebar, judul halaman, dan neon sign besar di dinding kantor 3D.
+                </p>
+              </div>
+
+              {/* LOGO UPLOADER */}
+              <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-white/10 bg-[#090b14] p-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolveLogoUrl(branding.logo_url)}
+                  alt="Preview Logo Kantor"
+                  className="h-16 w-16 rounded-xl object-cover border border-white/15 bg-black/30"
+                />
+                <div className="flex-1 min-w-[200px] space-y-2">
+                  <p className="text-xs font-semibold text-slate-200">
+                    Logo Brand / Perusahaan
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.webp,.svg"
+                      onChange={handleUploadLogo}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={uploadingLogo}
+                      className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3.5 py-1.5 text-xs font-bold text-white transition disabled:opacity-50"
+                    >
+                      {uploadingLogo ? "Mengunggah..." : "📤 Upload Logo Baru"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetLogo}
+                      className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-1.5 text-xs text-slate-300 transition"
+                    >
+                      Reset Default
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    Format PNG/JPG/WebP/SVG, maksimal 5MB. Disarankan rasio 1:1 (persegi).
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Nama Office / Brand
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={branding.office_name}
+                  onChange={(e) => setBranding({ ...branding, office_name: e.target.value })}
+                  placeholder="Contoh: Solusi Macro"
+                  className="w-full rounded-xl border border-white/10 bg-[#090b14] px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Sub-judul Dinding 3D
+                </label>
+                <input
+                  type="text"
+                  value={branding.office_subtitle}
+                  onChange={(e) => setBranding({ ...branding, office_subtitle: e.target.value })}
+                  placeholder="Contoh: Excel · Dashboard · Otomasi"
+                  className="w-full rounded-xl border border-white/10 bg-[#090b14] px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Badge / Tagline Sidebar
+                </label>
+                <input
+                  type="text"
+                  value={branding.office_badge}
+                  onChange={(e) => setBranding({ ...branding, office_badge: e.target.value })}
+                  placeholder="Contoh: Virtual Office · AI Team"
+                  className="w-full rounded-xl border border-white/10 bg-[#090b14] px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-400"
+                />
+              </div>
+            </div>
+
+            {/* RIGHT: KATA-KATA DI RUANGAN 3D */}
+            <div className="lg:col-span-6 rounded-3xl border border-white/10 bg-[#121422] p-6 shadow-xl space-y-5">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>✨</span> Kata-Kata & Quotes di Kantor 3D
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Ubah teks pada layar LED besar dan papan tulis kapur di dalam ruangan 3D.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-purple-400/20 bg-purple-500/5 p-4 space-y-3">
+                <p className="text-xs font-bold text-purple-200">
+                  📺 Layar LED Besar Dinding
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Baris 1 (Besar)</label>
+                    <input
+                      type="text"
+                      value={branding.led_line_1}
+                      onChange={(e) => setBranding({ ...branding, led_line_1: e.target.value })}
+                      placeholder="DREAM IT"
+                      className="w-full rounded-xl border border-white/10 bg-[#090b14] px-3 py-2 text-xs text-white outline-none focus:border-indigo-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Baris 2</label>
+                    <input
+                      type="text"
+                      value={branding.led_line_2}
+                      onChange={(e) => setBranding({ ...branding, led_line_2: e.target.value })}
+                      placeholder="MAKE IT REAL"
+                      className="w-full rounded-xl border border-white/10 bg-[#090b14] px-3 py-2 text-xs text-white outline-none focus:border-indigo-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-4 space-y-3">
+                <p className="text-xs font-bold text-emerald-200">
+                  🖍️ Papan Tulis Kapur (Standing Board)
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Baris 1</label>
+                    <input
+                      type="text"
+                      value={branding.chalk_line_1}
+                      onChange={(e) => setBranding({ ...branding, chalk_line_1: e.target.value })}
+                      placeholder="Good"
+                      className="w-full rounded-xl border border-white/10 bg-[#090b14] px-3 py-2 text-xs text-white outline-none focus:border-indigo-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Baris 2</label>
+                    <input
+                      type="text"
+                      value={branding.chalk_line_2}
+                      onChange={(e) => setBranding({ ...branding, chalk_line_2: e.target.value })}
+                      placeholder="Vibes"
+                      className="w-full rounded-xl border border-white/10 bg-[#090b14] px-3 py-2 text-xs text-white outline-none focus:border-indigo-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Baris 3</label>
+                    <input
+                      type="text"
+                      value={branding.chalk_line_3}
+                      onChange={(e) => setBranding({ ...branding, chalk_line_3: e.target.value })}
+                      placeholder="Only"
+                      className="w-full rounded-xl border border-white/10 bg-[#090b14] px-3 py-2 text-xs text-white outline-none focus:border-indigo-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={savingBranding}
+                  className="rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 px-6 py-2.5 text-xs font-bold text-white shadow-lg transition disabled:opacity-50"
+                >
+                  {savingBranding ? "Menyimpan..." : "💾 Simpan Branding & Teks 3D"}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* SHORTCUT KE KELOLA TIM AI */}
+          <div className="rounded-3xl border border-indigo-400/20 bg-indigo-500/5 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>🤖</span> Kustomisasi Nama, Jabatan & Routing Model Agen AI
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Pengelolaan profil lengkap ke-8 agen AI (termasuk ubah nama 3D, role, deskripsi, dan routing provider/model khusus per agen) kini terpusat di menu <strong>Kelola Tim</strong>.
+              </p>
+            </div>
+            <Link
+              href="/agents"
+              className="shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 text-xs font-bold text-white shadow-lg transition"
+            >
+              🤖 Buka Menu Kelola Tim →
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* MODAL TAMBAH PROVIDER BARU */}
       {isAddModalOpen && (

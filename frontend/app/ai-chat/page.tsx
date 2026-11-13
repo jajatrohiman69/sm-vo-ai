@@ -381,9 +381,9 @@ export default function AICEOChatPage() {
     rolePrompts[agentName] ?? rolePrompts["AI CEO"];
 
   return (
-    <section className="flex-1 min-w-0 flex flex-col h-screen bg-[#080d1a]">
+    <section className="flex-none w-full min-w-0 flex flex-col h-[calc(100dvh-57px)] md:h-screen max-h-screen overflow-hidden bg-[#080d1a]">
       {/* HEADER & AGENT / PROJECT SELECTOR */}
-      <header className="border-b border-white/10 px-5 md:px-8 py-4 space-y-3 bg-[#131316]/70">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-white/10 px-5 md:px-8 py-3.5 space-y-2.5 bg-[#131316]/95 backdrop-blur-md">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <p className="text-xs text-blue-400 font-semibold tracking-widest uppercase">
@@ -474,7 +474,7 @@ export default function AICEOChatPage() {
       </header>
 
       {/* CHAT MESSAGES */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {historyLoading ? (
             <div className="py-12 text-center text-sm text-slate-400">
@@ -685,7 +685,7 @@ export default function AICEOChatPage() {
       )}
 
       {/* INPUT */}
-      <div className="border-t border-white/10 px-4 md:px-8 py-4 bg-[#09090b]">
+      <div className="shrink-0 border-t border-white/10 px-4 md:px-8 py-3 bg-[#080d1a]/95 backdrop-blur-md">
         <form onSubmit={sendMessage} className="max-w-4xl mx-auto">
           <input
             ref={fileInputRef}
@@ -695,7 +695,20 @@ export default function AICEOChatPage() {
             className="hidden"
             onChange={handleFilesSelected}
           />
-          <div className="flex gap-3 items-end bg-[#131316] border border-white/10 rounded-2xl p-3 focus-within:border-blue-500/50">
+          <div className="flex items-end gap-2 rounded-2xl border border-white/15 bg-[#121624] px-3 py-2 shadow-lg focus-within:border-blue-400/60 focus-within:ring-1 focus-within:ring-blue-400/20 transition">
+            <button
+              type="button"
+              aria-label="Upload lampiran"
+              title="Upload Excel, CSV, atau gambar"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={
+                loading || uploadingFiles || attachments.length >= 5
+              }
+              className="shrink-0 h-8 w-8 rounded-xl flex items-center justify-center text-slate-400 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+            >
+              {uploadingFiles ? "…" : "📎"}
+            </button>
+
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
@@ -706,36 +719,22 @@ export default function AICEOChatPage() {
                 }
               }}
               placeholder={`Kirim instruksi atau diskusi ke ${agentName}...`}
-              rows={2}
+              rows={1}
               maxLength={10000}
-              className="flex-1 bg-transparent outline-none resize-none text-sm text-white placeholder:text-slate-500 p-2"
+              className="flex-1 bg-transparent outline-none resize-none text-sm leading-5 text-white placeholder:text-slate-500 py-1.5 px-1 max-h-28 overflow-y-auto"
             />
 
-            <div className="flex shrink-0 flex-col gap-2">
-              <button
-                type="button"
-                aria-label="Upload lampiran"
-                title="Upload Excel, CSV, atau gambar"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={
-                  loading || uploadingFiles || attachments.length >= 5
-                }
-                className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 transition hover:bg-white/10 disabled:opacity-40"
-              >
-                {uploadingFiles ? "..." : "📎"}
-              </button>
-              <button
-                type="submit"
-                disabled={
-                  loading ||
-                  uploadingFiles ||
-                  (!input.trim() && attachments.length === 0)
-                }
-                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-5 py-3 text-sm font-semibold transition"
-              >
-                {loading ? "..." : "Kirim ↑"}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={
+                loading ||
+                uploadingFiles ||
+                (!input.trim() && attachments.length === 0)
+              }
+              className="shrink-0 h-8 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed px-3.5 text-xs font-semibold text-white shadow-sm transition"
+            >
+              {loading ? "..." : "Kirim ↑"}
+            </button>
           </div>
           {(attachments.length > 0 || attachmentError) && (
             <div className="mt-2 space-y-2">

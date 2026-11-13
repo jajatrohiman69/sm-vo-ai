@@ -111,34 +111,44 @@ def init_db_providers(db_session):
         db_session.commit()
 
 
-def get_active_provider_config(db_session=None) -> dict[str, Any]:
+def get_active_provider_config(
+    db_session=None, provider_id: str | None = None
+) -> dict[str, Any]:
     """
-    Mengambil konfigurasi provider yang sedang aktif.
+    Mengambil konfigurasi provider yang sedang aktif (atau provider spesifik jika provider_id diberikan).
     Prioritas: Database (jika ada) -> Fallback ke file .env.
     """
     if db_session:
         from models import AIProviderConfig
         try:
-            active = (
-                db_session.query(AIProviderConfig)
-                .filter(AIProviderConfig.is_active == 1)
-                .first()
-            )
-            if active:
+            target = None
+            if provider_id and provider_id.strip():
+                target = (
+                    db_session.query(AIProviderConfig)
+                    .filter(AIProviderConfig.provider_id == provider_id.strip())
+                    .first()
+                )
+            if not target:
+                target = (
+                    db_session.query(AIProviderConfig)
+                    .filter(AIProviderConfig.is_active == 1)
+                    .first()
+                )
+            if target:
                 models_list = []
-                if active.custom_models_json:
+                if target.custom_models_json:
                     try:
-                        models_list = json.loads(active.custom_models_json)
+                        models_list = json.loads(target.custom_models_json)
                     except Exception:
                         pass
                 return {
-                    "provider_id": active.provider_id,
-                    "name": active.name,
-                    "base_url": active.base_url.rstrip("/"),
-                    "api_key": active.api_key or "",
-                    "default_model": active.default_model,
+                    "provider_id": target.provider_id,
+                    "name": target.name,
+                    "base_url": target.base_url.rstrip("/"),
+                    "api_key": target.api_key or "",
+                    "default_model": target.default_model,
                     "models": models_list,
-                    "status": active.status,
+                    "status": target.status,
                 }
         except Exception:
             pass
@@ -217,11 +227,12 @@ def resolve_ai_model(
     task_type: str = "general",
     agent_role_or_name: str = "",
     db_session=None,
+    provider_id: str | None = None,
 ) -> str:
     """
-    Menentukan model AI terbaik berdasarkan provider aktif dan peran agent.
+    Menentukan model AI terbaik berdasarkan provider aktif (atau provider spesifik) dan peran agent.
     """
-    cfg = get_active_provider_config(db_session)
+    cfg = get_active_provider_config(db_session, provider_id=provider_id)
     default_m = cfg.get("default_model", "DeepSeek V4 Flash Mod")
 
     if requested_model and requested_model.strip() and requested_model.strip() != "auto":
@@ -255,12 +266,14 @@ def resolve_ai_model(
     return default_m
 
 
-def get_ai_client(db_session=None) -> tuple[OpenAI, str]:
+def get_ai_client(
+    db_session=None, provider_id: str | None = None
+) -> tuple[OpenAI, str]:
     """
-    Membuat client OpenAI SDK terarah ke endpoint & API key provider aktif.
+    Membuat client OpenAI SDK terarah ke endpoint & API key provider aktif (atau provider spesifik).
     Mengembalikan tuple (client, default_model).
     """
-    cfg = get_active_provider_config(db_session)
+    cfg = get_active_provider_config(db_session, provider_id=provider_id)
     api_key = cfg.get("api_key") or "dummy-key"
     base_url = cfg.get("base_url")
 
@@ -281,14 +294,15 @@ def _chat_completion_with_fallback(
     max_tokens: int = 3000,
     temperature: float = 0.5,
     db_session=None,
+    provider_id: str | None = None,
 ) -> tuple[str, str]:
     """
-    Menjalankan eksekusi chat completion ke endpoint aktif.
+    Menjalankan eksekusi chat completion ke endpoint aktif atau endpoint khusus agen.
     """
-    client, default_m = get_ai_client(db_session)
+    client, default_m = get_ai_client(db_session, provider_id=provider_id)
     candidate_model = model if (model and model != "auto") else default_m
 
-    cfg = get_active_provider_config(db_session)
+    cfg = get_active_provider_config(db_session, provider_id=provider_id)
     fallback_chain = [candidate_model]
     if default_m not in fallback_chain:
         fallback_chain.append(default_m)
@@ -392,6 +406,7 @@ def ask_claude(
     agent_name: str = "AI CEO",
     image_urls: list[str] | None = None,
     db_session=None,
+    provider_id: str | None = None,
 ) -> str:
     is_ceo = not agent_name or agent_name.strip().upper() == "AI CEO"
     chosen_model = resolve_ai_model(
@@ -399,6 +414,7 @@ def ask_claude(
         task_type="ceo_chat" if is_ceo else "agent_chat",
         agent_role_or_name=agent_name,
         db_session=db_session,
+        provider_id=provider_id,
     )
 
     base_sys = system_prompt or (
@@ -433,6 +449,7 @@ def ask_claude(
         max_tokens=3600,
         temperature=0.55,
         db_session=db_session,
+        provider_id=provider_id,
     )
     return content
 
@@ -451,12 +468,17 @@ def execute_agent_task(
     agent_role = getattr(agent, "role", "Specialist")
     agent_dept = getattr(agent, "department", "General")
     agent_desc = getattr(agent, "description", "")
+    agent_provider_id = getattr(agent, "preferred_provider_id", None) or None
+    agent_preferred_model = getattr(agent, "preferred_model", None) or None
+
+    effective_model = model if (model and model.strip() and model.strip() != "auto") else agent_preferred_model
 
     chosen_model = resolve_ai_model(
-        model,
+        effective_model,
         task_type="agent_exec",
         agent_role_or_name=f"{agent_name} {agent_role} {agent_dept}",
         db_session=db_session,
+        provider_id=agent_provider_id,
     )
 
     project_name = getattr(project, "name", "-") if project else "-"
@@ -510,6 +532,7 @@ Kerjakan task di atas sekarang dengan solusi lengkap dan siap pakai.
         max_tokens=4000,
         temperature=0.3,
         db_session=db_session,
+        provider_id=agent_provider_id,
     )
     return result
 

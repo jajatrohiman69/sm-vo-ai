@@ -22,6 +22,8 @@ class Agent(Base):
     department = Column(String, nullable=False)
     status = Column(String, default="Standby")
     description = Column(Text, nullable=True)
+    preferred_provider_id = Column(String, nullable=True)
+    preferred_model = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
 
     assigned_tasks = relationship(
@@ -272,4 +274,21 @@ class AIProviderConfig(Base):
     status = Column(String, default="Not Tested")  # Active, Connected, Failed, Not Tested
     last_tested_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class WorkspaceSettings(Base):
+    __tablename__ = "workspace_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    office_name = Column(String, default="Solusi Macro")
+    office_subtitle = Column(String, default="Excel · Dashboard · Otomasi")
+    office_badge = Column(String, default="Virtual Office · AI Team")
+    logo_url = Column(String, default="/solusi-macro-logo.png")
+    led_line_1 = Column(String, default="DREAM IT")
+    led_line_2 = Column(String, default="MAKE IT REAL")
+    chalk_line_1 = Column(String, default="Good")
+    chalk_line_2 = Column(String, default="Vibes")
+    chalk_line_3 = Column(String, default="Only")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
 
