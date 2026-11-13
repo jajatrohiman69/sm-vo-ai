@@ -58,6 +58,8 @@ from excel_vba_service import (
     extract_and_compile_artifacts,
     get_uploaded_image_data_url,
     load_upload_metadata,
+    needs_code_artifacts,
+    needs_document_artifacts,
     needs_excel_vba_builder,
     parse_uploaded_file,
     save_upload_metadata,
@@ -332,6 +334,50 @@ IMPORTANT RULES:
 """
 
 
+def build_ceo_system_prompt(db: Session) -> str:
+    """Bangun system prompt AI CEO dinamis sesuai pengaturan perusahaan di WorkspaceSettings."""
+    ws = _get_or_create_workspace_settings(db)
+    company_name = (ws.office_name or "Solusi Macro").strip()
+    company_focus = (ws.office_subtitle or "Excel · Dashboard · Otomasi").strip()
+    company_badge = (ws.office_badge or "Virtual Office · AI Team").strip()
+
+    agents = db.query(Agent).all()
+    org_lines = ["- Founder: Human decision maker and final approver."]
+    for ag in agents:
+        org_lines.append(f"- {ag.name} ({ag.role} · {ag.department}): {ag.description or '-'}")
+    org_block = "\n".join(org_lines)
+
+    return f"""
+You are the AI CEO of {company_name}.
+
+COMPANY PROFILE:
+- Company / Brand Name: {company_name}
+- Focus & Services: {company_focus}
+- Workspace Type: {company_badge}
+
+YOUR RESPONSIBILITIES:
+1. Think strategically as the AI CEO of {company_name}.
+2. Analyze projects, tasks, agents, and company operations.
+3. Coordinate the specialist AI Agents in the team.
+4. Recommend practical and measurable actions tailored to {company_name} ({company_focus}).
+5. Identify risks, priorities, and dependencies.
+6. Report progress clearly to the Founder.
+
+ORGANIZATION:
+{org_block}
+
+IMPORTANT RULES:
+- Always represent yourself as the AI CEO of {company_name} (never use another company name unless asked).
+- The human Founder has final authority.
+- Never claim an action has been completed unless confirmed.
+- Distinguish recommendations from actual execution.
+- Do not invent database records.
+- Do not execute arbitrary SQL or database commands.
+- Be transparent about limitations.
+- Respond in Indonesian unless requested otherwise.
+"""
+
+
 # ============================================================
 # GENERAL HELPERS
 # ============================================================
@@ -512,6 +558,22 @@ def validate_plan_items(data: dict, agents: list[Agent]):
     return validated_items
 
 
+def _compact_ai_history_text(text: Optional[str], max_chars: int = 2500) -> str:
+    """Bersihkan metadata artifact internal dan pangkas teks lama agar hemat token."""
+    if not text:
+        return ""
+    cleaned = re.sub(r"<!--\s*VHQ_ARTIFACTS:[\s\S]*?-->", "", text)
+    cleaned = re.sub(
+        r"\n*---\s*\n###\s*📦\s*(?:Artifact & File Kerja Siap Unduh|File Excel & Modul Macro VBA Siap Unduh)[\s\S]*$",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    ).strip()
+    if len(cleaned) > max_chars:
+        return cleaned[:max_chars].rstrip() + "\n... [ringkasan dipotong untuk efisiensi token]"
+    return cleaned
+
+
 def build_ai_context(db: Session):
     agents = db.query(Agent).all()
     projects = db.query(Project).all()
@@ -519,7 +581,7 @@ def build_ai_context(db: Session):
     tasks = (
         db.query(Task)
         .order_by(Task.created_at.desc())
-        .limit(30)
+        .limit(15)
         .all()
     )
 
@@ -539,7 +601,11 @@ def build_ai_context(db: Session):
                 "id": project.id,
                 "name": project.name,
                 "status": project.status,
-                "description": project.description,
+                "description": (
+                    (project.description[:220] + "...")
+                    if project.description and len(project.description) > 220
+                    else project.description
+                ),
             }
             for project in projects
         ],
@@ -742,6 +808,15 @@ def execute_approved_plan(task_ids: list[int]):
                 db_session=db,
             )
 
+            task_context_text = f"{task_title} {task.description or ''}"
+            result, _ = extract_and_compile_artifacts(
+                result,
+                prefix=f"{agent_name}_{task_title[:28]}",
+                force_excel_if_table=needs_excel_vba_builder(task_context_text),
+                force_documents=needs_document_artifacts(task_context_text),
+                document_title=task_title,
+            )
+
             task.result = result
             task.status = "Review"
             task.completed_at = datetime.now()
@@ -761,7 +836,7 @@ def execute_approved_plan(task_ids: list[int]):
             prior_results.append({
                 "task_title": task_title,
                 "agent_name": agent_name,
-                "result": result,
+                "result": _compact_ai_history_text(result, max_chars=2500),
             })
 
         except Exception as exc:
@@ -2334,12 +2409,21 @@ def ai_ceo_chat(
 
     history_records.reverse()
 
+    past_records = history_records[:-1]
+    total_past = len(past_records)
     history = [
         {
             "role": item.role,
-            "content": item.content,
+            "content": (
+                _compact_ai_history_text(
+                    item.content,
+                    max_chars=4000 if idx >= total_past - 4 else 1000,
+                )
+                if item.role == "assistant"
+                else _compact_ai_history_text(item.content, max_chars=4000)
+            ),
         }
-        for item in history_records[:-1]
+        for idx, item in enumerate(past_records)
     ]
 
     context = build_ai_context(db)
@@ -2375,9 +2459,13 @@ def ai_ceo_chat(
             ],
         }
 
+    ws = _get_or_create_workspace_settings(db)
+    company_name = (ws.office_name or "Solusi Macro").strip()
+    company_focus = (ws.office_subtitle or "Excel · Dashboard · Otomasi").strip()
+
     if target_agent and target_agent.name.upper() != "AI CEO":
         base_persona_prompt = f"""
-Kamu adalah {target_agent.name}, AI Specialist di Solusi Macro Virtual HQ.
+Kamu adalah {target_agent.name}, AI Specialist di {company_name} Virtual HQ.
 
 IDENTITAS AGENT:
 - Nama: {target_agent.name}
@@ -2385,19 +2473,20 @@ IDENTITAS AGENT:
 - Departemen: {target_agent.department}
 - Deskripsi Tugas: {target_agent.description or "-"}
 
-PROFIL SOLUSI MACRO:
-Solusi Macro menyediakan layanan Excel & spreadsheet automation, dashboard & business reporting, serta business process automation untuk UMKM, startup, dan perusahaan.
+PROFIL PERUSAHAAN ({company_name}):
+- Nama Perusahaan / Brand: {company_name}
+- Fokus & Layanan: {company_focus}
 
 ATURAN DISKUSI DENGAN FOUNDER:
-1. Jawab langsung sebagai {target_agent.name} ({target_agent.role}) dengan keahlian teknis/fungsional sesuai departemenmu ({target_agent.department}).
+1. Jawab langsung sebagai {target_agent.name} ({target_agent.role}) dari {company_name} dengan keahlian teknis/fungsional sesuai departemenmu ({target_agent.department}).
 2. Berikan solusi konkret, contoh formula/kode/rancangan/SOP jika relevan.
 3. Jangan mengaku telah mengubah database atau mengeksekusi sistem eksternal secara langsung di ruang chat.
 4. Gunakan Bahasa Indonesia profesional dan format Markdown yang rapi.
 """
         responder_label = target_agent.name
     else:
-        base_persona_prompt = CEO_SYSTEM_PROMPT
-        responder_label = "AI CEO"
+        base_persona_prompt = build_ceo_system_prompt(db)
+        responder_label = target_agent.name if target_agent else "AI CEO"
 
     system_prompt = (
         base_persona_prompt
@@ -2447,10 +2536,13 @@ ATURAN DISKUSI DENGAN FOUNDER:
             db_session=db,
             provider_id=agent_provider_id,
         )
-        response, _ = extract_and_compile_artifacts(
+        response, generated_artifacts = extract_and_compile_artifacts(
             response,
-            prefix=f"{responder_label}_Workbook",
-            force_excel_if_table=needs_excel_vba_builder(message_for_ai),
+            prefix=f"{responder_label}_Deliverable",
+            force_excel_if_table=needs_excel_vba_builder(message),
+            force_documents=needs_document_artifacts(message),
+            auto_extract_code=needs_code_artifacts(message) or needs_excel_vba_builder(message),
+            document_title=f"Hasil Diskusi {responder_label}",
         )
 
         assistant_message = ChatMessage(
@@ -2482,6 +2574,7 @@ ATURAN DISKUSI DENGAN FOUNDER:
                 provider_id=agent_provider_id,
             ),
             "message": response,
+            "artifacts": generated_artifacts,
             "created_at": assistant_message.created_at,
         }
 

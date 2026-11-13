@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 import os
+import re
 from typing import Any, Optional
 import urllib.request
 
@@ -288,6 +289,69 @@ def get_ai_client(
     return client, cfg.get("default_model")
 
 
+def _looks_like_reasoning_monologue(text: str) -> bool:
+    """Deteksi apakah teks diawali monolog berpikir internal bahasa Inggris."""
+    head = (text or "").lstrip()[:400].lower()
+    starters = (
+        "... wait",
+        "wait, no",
+        "the user wants",
+        "the user is asking",
+        "let me ",
+        "okay, let",
+        "alright, let",
+        "hmm,",
+        "hmm ",
+        "i should ",
+        "i need to ",
+        "first, let",
+    )
+    return any(head.startswith(s) for s in starters)
+
+
+def _strip_reasoning_leak(text: str) -> str:
+    """
+    Membersihkan kebocoran chain-of-thought (<think>, <thought>, <reasoning>,
+    atau monolog reasoning bahasa Inggris) yang kadang dikirim model ke message.content.
+    """
+    if not text:
+        return ""
+    cleaned = re.sub(
+        r"<(?:think|thought|reasoning)>[\s\S]*?</(?:think|thought|reasoning)>",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    # Jika ada tag pembuka tanpa penutup karena terpotong, buang sampai sebelum jawaban atau seluruhnya
+    cleaned = re.sub(r"<(?:think|thought|reasoning)>[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"</?(?:think|thought|reasoning)>", "", cleaned, flags=re.IGNORECASE).strip()
+
+    # Buang baris pembuka "... wait, no. Let me ..."
+    leak_match = re.search(
+        r"^(?:\.\.\.\s*)?(?:wait,?\s*no\.?\s*)?(?:let me (?:actually |just )?(?:answer|respond|provide|write|give)[^\n]*?[\.:]?)\s*\n+",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    if leak_match:
+        after = cleaned[leak_match.end():].strip()
+        if after:
+            cleaned = after
+
+    # Jika masih diawali monolog berpikir bahasa Inggris (The user wants / Let me / Hmm),
+    # cari awal jawaban Bahasa Indonesia / Heading Markdown yang sebenarnya.
+    if _looks_like_reasoning_monologue(cleaned):
+        real_start = re.search(
+            r"(?m)^(?:#{1,3}\s+[^\n]+|(?:Halo|Baik|Tentu|Siap|Berikut|Untuk|Saya|Ini|Langkah|Ringkasan)\b[^\n]*)",
+            cleaned,
+        )
+        if real_start and real_start.start() > 0:
+            candidate = cleaned[real_start.start():].strip()
+            if len(candidate) >= 40:
+                cleaned = candidate
+
+    return cleaned.strip()
+
+
 def _chat_completion_with_fallback(
     model: str,
     messages: list[dict],
@@ -321,7 +385,12 @@ def _chat_completion_with_fallback(
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-            content = (resp.choices[0].message.content or "").strip()
+            raw_content = (resp.choices[0].message.content or "").strip()
+            content = _strip_reasoning_leak(raw_content)
+            # Jika model habis token di tengah monolog English tanpa jawaban final,
+            # coba lanjutkan ke model fallback berikutnya bila ada.
+            if content and _looks_like_reasoning_monologue(content) and len(fallback_chain) > 1:
+                continue
             if content:
                 return content, target_m
         except Exception as exc:
@@ -425,6 +494,13 @@ def ask_claude(
     if needs_excel_vba_builder(message) or image_urls:
         base_sys = base_sys + "\n\n" + EXCEL_VBA_BUILDER_INSTRUCTIONS
 
+    base_sys = (
+        base_sys
+        + "\n\nATURAN OUTPUT WAJIB: JANGAN menuliskan proses berpikir internal, "
+        + "monolog perencanaan bahasa Inggris ('Wait...', 'Let me...', 'Hmm...', 'The user wants...'), "
+        + "atau tag <think>. Langsung berikan jawaban final dalam Bahasa Indonesia yang rapi dan lengkap."
+    )
+
     messages: list[dict] = [{"role": "system", "content": base_sys}]
 
     if history:
@@ -446,7 +522,7 @@ def ask_claude(
     content, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=messages,
-        max_tokens=3600,
+        max_tokens=8192,
         temperature=0.55,
         db_session=db_session,
         provider_id=provider_id,
@@ -487,8 +563,20 @@ def execute_agent_task(
     task_desc = getattr(task, "description", "-")
     task_prio = getattr(task, "priority", "Normal")
 
+    company_name = "Solusi Macro"
+    company_focus = "Excel · Dashboard · Otomasi"
+    if db_session is not None:
+        try:
+            from models import WorkspaceSettings
+            ws = db_session.query(WorkspaceSettings).first()
+            if ws:
+                company_name = (ws.office_name or company_name).strip()
+                company_focus = (ws.office_subtitle or company_focus).strip()
+        except Exception:
+            pass
+
     system_prompt = f"""
-Kamu adalah {agent_name}, AI Specialist di Solusi Macro Virtual HQ.
+Kamu adalah {agent_name}, AI Specialist di {company_name} Virtual HQ ({company_focus}).
 Nama: {agent_name} | Role: {agent_role} | Departemen: {agent_dept}
 Deskripsi: {agent_desc}
 
@@ -499,6 +587,12 @@ TUGAS:
 """
     if needs_excel_vba_builder(f"{task_title} {task_desc} {agent_role}"):
         system_prompt += "\n\n" + EXCEL_VBA_BUILDER_INSTRUCTIONS
+
+    system_prompt += (
+        "\n\nATURAN OUTPUT WAJIB: JANGAN menuliskan proses berpikir internal, "
+        "monolog bahasa Inggris ('Wait...', 'Let me...', 'Hmm...'), atau tag <think>. "
+        "Langsung berikan hasil kerja final dalam Bahasa Indonesia."
+    )
 
     user_prompt = f"""
 PROJECT: {project_name}
@@ -529,7 +623,7 @@ Kerjakan task di atas sekarang dengan solusi lengkap dan siap pakai.
     result, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=msg_payload,
-        max_tokens=4000,
+        max_tokens=8192,
         temperature=0.3,
         db_session=db_session,
         provider_id=agent_provider_id,

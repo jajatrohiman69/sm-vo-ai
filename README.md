@@ -34,10 +34,11 @@ Solusi Macro Virtual HQ (VHQ) adalah platform manajemen kerja kolaboratif berbas
 * **Deep VBA Macro Inspection**: Menggunakan *olevba parser* untuk mengekstrak modul VBA tersembunyi dari workbook lama secara aman tanpa perlu membuka aplikasi Excel.
 * **Spreadsheet Header & Data Profiling**: AI membaca nama sheet, jumlah baris, header kolom, dan sampel data untuk memahami konteks masalah bisnis secara mendalam.
 
-### 4. 📊 Auto-Artifact Builder (.xlsx & .bas VBA Downloads)
-* **Generasi File Excel Asli (`.xlsx`)**: Agen otomatis menyusun workbook Excel fungsional lengkap dengan format tabel profesional, header berwarna, formula matematika/logika, dan pembungkus teks.
-* **Ekstraksi Modul VBA (`.bas`)**: Setiap blok kode VBA Macro yang dirancang agen otomatis dikonversi menjadi file modul `.bas` siap pakai.
-* **One-Click Download**: File hasil rancangan agen dapat langsung diunduh dari modal hasil pekerjaan atau task board.
+### 4. 📊 Multi-Format Auto-Artifact Builder (`.xlsx` Pro, `.bas`, `.docx`, `.pdf`, Script & `.zip`)
+* **Excel Workbook Pro (`.xlsx`)**: Mendukung banner `title`/`subtitle`, strip `kpi_cards`, format kolom (`currency`, `percent`, `date`, `number`), *zebra striping*, *freeze panes*, *auto-filter*, *dropdown data validation*, *conditional formatting*, serta grafik (`BarChart`, `LineChart`, `PieChart`).
+* **Modul Macro VBA (`.bas`) & Script/Data**: Otomatis mengekstrak kode VBA (`.bas`), Python (`.py`), Google Apps Script (`.gs`), SQL (`.sql`), CSV (`.csv`), HTML (`.html`), dan JSON (`.json`) bila diminta.
+* **Dokumen Resmi (`.docx` & `.pdf`) & Paket `.zip`**: Mengonversi laporan, SOP, dan proposal menjadi dokumen Word (`.docx`) dan PDF (`.pdf`) siap unduh, serta membundel multi-file menjadi `.zip`.
+* **Kartu Artifact Interaktif (`ArtifactCards`)**: Ditampilkan di `/ai-chat` dan `/tasks` lengkap dengan badge tipe file, ukuran KB, tombol unduh individual, dan **Unduh Semua (.ZIP)** — hanya terpicu saat Anda meminta pembuatan file/dokumen atau saat eksekusi task proyek.
 
 ### 5. ⚡ AI Provider & Endpoint Hub (`/settings`) & Per-Agent Routing
 * **Multi-Provider Realtime Switching & CRUD**: Tambah, edit, aktifkan, atau hapus provider AI (Custom OpenAI-Compatible, **9Router**, OCTA Telkomsel, Google Gemini Direct, Groq, OpenRouter, atau Ollama Lokal) langsung dari dashboard web tanpa restart server.
@@ -45,11 +46,11 @@ Solusi Macro Virtual HQ (VHQ) adalah platform manajemen kerja kolaboratif berbas
 * **Live Connection Test & Auto-Discovery Models**: Uji keaktifan endpoint beserta latensi (ms) dan pindai daftar model yang didukung (`/models`) secara otomatis dalam 1 klik.
 
 ### 6. 💬 Direct Agent Room (`/ai-chat`)
-* **Ruang Diskusi Langsung**: Chat interaktif dengan masing-masing agen AI dengan konteks seluruh VHQ atau proyek tertentu.
-* **Sticky Header & Compact Composer**: Header dan bar input tetap diam saat riwayat bubble chat di-scroll, dilengkapi unggah lampiran (`.xlsx`, `.xlsm`, `.csv`, gambar).
+* **Ruang Diskusi Langsung & Persona Dinamis**: Chat interaktif dengan AI CEO maupun spesialis lain dengan identitas perusahaan mengikuti pengaturan **Branding Kantor (`/settings`)**.
+* **Sticky Header, Compact Composer & Guard Output**: Header dan bar input tetap diam saat bubble chat di-scroll, dilengkapi unggah lampiran, optimasi efisiensi token riwayat, serta pembersih otomatis kebocoran *reasoning/thinking* dari model LLM.
 
 ### 7. 👥 Kelola Tim & Kustomisasi Agen (`/agents`)
-* **Manajemen Agen Terpusat**: Kustomisasi nama, jabatan/role, deskripsi keahlian, serta routing provider & model AI masing-masing agen dalam satu halaman.
+* **Team Directory Modern**: Tampilan kartu grid dengan pencarian, filter departemen, ringkasan cakupan kapabilitas yang dapat dilipat, tombol chat langsung, serta modal tambah/edit agen lengkap dengan routing provider & model AI per agen.
 
 ### 8. 📡 Omnichannel Social Hub (`/social-hub`)
 * **Workspace Konten & Setup API Terpisah**: Pemisahan area operasional konten/kalender dari konfigurasi API platform sosial media agar tampilan lebih bersih dan fokus.
@@ -69,9 +70,10 @@ Solusi Macro Virtual HQ (VHQ) adalah platform manajemen kerja kolaboratif berbas
 * **Web Framework**: [FastAPI](https://fastapi.tiangolo.com) (Python 3.11+) dengan Uvicorn ASGI Server
 * **Database & ORM**: [SQLAlchemy 2.0](https://www.sqlalchemy.org/) dengan SQLite (mudah dimigrasi ke PostgreSQL/MySQL)
 * **AI Client**: Universal [OpenAI Python SDK](https://github.com/openai/openai-python) kompatibel dengan OpenAI, Google Gemini, Groq, DeepSeek, Ollama, dan Claude wrapper.
-* **Excel & Macro Engine**:
-  * `openpyxl`: Pembuatan, parsing, dan penataan gaya sheet Excel.
+* **Excel, Dokumen & Macro Engine**:
+  * `openpyxl`: Pembuatan workbook Excel, chart, validasi data, dan conditional formatting.
   * `oletools`: Inspeksi dan ekstraksi kode Macro VBA dari format OLE / `.xlsm`.
+  * `python-docx` & `reportlab`: Generasi dokumen Word (`.docx`) dan PDF (`.pdf`) siap unduh.
   * `python-multipart`: Handler streaming upload file biner dan gambar.
 
 ---
@@ -200,6 +202,7 @@ solusi-macro-vhq/
 │   │   ├── tasks/page.tsx        # Task Board & Deliverables
 │   │   └── virtual-office/page.tsx # Ruang Kantor Virtual 3D
 │   ├── components/
+│   │   ├── artifact-cards.tsx    # Kartu unduhan artifact interaktif (.xlsx/.docx/.pdf/.zip)
 │   │   ├── auth-guard.tsx        # Proteksi rute autentikasi
 │   │   ├── vhq-shell.tsx         # Sidebar, navigasi, dan indikator status AI
 │   │   ├── virtual-office-3d.tsx # Engine 3D Pixar Studio Diorama (Three.js)

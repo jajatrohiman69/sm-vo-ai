@@ -10,6 +10,9 @@ import {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ArtifactCards, {
+  parseArtifactsFromMarkdown,
+} from "@/components/artifact-cards";
 import { API_URL, uploadAttachment } from "@/lib/api";
 import type { UploadedAttachment } from "@/lib/api";
 
@@ -541,6 +544,13 @@ export default function AICEOChatPage() {
                 </p>
 
                 <div className="text-sm leading-relaxed text-slate-200 space-y-2">
+                  {(() => {
+                    const { cleanContent, artifacts } =
+                      message.role === "assistant"
+                        ? parseArtifactsFromMarkdown(message.content)
+                        : { cleanContent: message.content, artifacts: [] };
+                    return (
+                      <>
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -623,8 +633,14 @@ export default function AICEOChatPage() {
                       },
                     }}
                   >
-                    {message.content}
+                    {cleanContent}
                   </ReactMarkdown>
+                        {message.role === "assistant" && (
+                          <ArtifactCards artifacts={artifacts} />
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {message.role === "assistant" && (
                     <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-wrap items-center justify-end gap-2">

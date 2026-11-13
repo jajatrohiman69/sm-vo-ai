@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ArtifactCards, { parseArtifactsFromMarkdown } from "./artifact-cards";
 
 export default function MarkdownDeliverable({
   content,
@@ -18,10 +19,11 @@ export default function MarkdownDeliverable({
   taskId?: number;
 }) {
   const [copiedDoc, setCopiedDoc] = useState(false);
+  const { cleanContent, artifacts } = parseArtifactsFromMarkdown(content);
 
   async function handleCopyAll() {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(cleanContent);
       setCopiedDoc(true);
       setTimeout(() => setCopiedDoc(false), 2000);
     } catch {
@@ -34,7 +36,7 @@ export default function MarkdownDeliverable({
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
-    const blob = new Blob([content], { type: "text/markdown;charset=utf-8;" });
+    const blob = new Blob([cleanContent], { type: "text/markdown;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -209,8 +211,10 @@ export default function MarkdownDeliverable({
             },
           }}
         >
-          {content}
+          {cleanContent}
         </ReactMarkdown>
+
+        <ArtifactCards artifacts={artifacts} />
       </div>
     </div>
   );
