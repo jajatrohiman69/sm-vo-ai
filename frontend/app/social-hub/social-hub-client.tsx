@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { API_URL } from "@/lib/api";
+import { useWorkspaceBranding } from "@/components/branding-runtime";
 
 type PlatformKey = "facebook" | "instagram" | "youtube" | "tiktok" | "threads";
 
@@ -112,7 +113,7 @@ const PLATFORMS: PlatformMeta[] = [
       "Buka developers.facebook.com → Buat/buka App dengan use-case 'Access the Threads API'.",
       "Tambahkan permission threads_basic dan threads_content_publish.",
       "Generate User Token untuk akun Threads Anda di menu Threads API → Settings.",
-      "VHQ mendukung publish Utas Bersambung (Thread Chain) secara otomatis ke Threads!",
+      "Workspace mendukung publish utas bersambung secara otomatis ke Threads!",
     ],
   },
   {
@@ -140,7 +141,7 @@ const PLATFORMS: PlatformMeta[] = [
         placeholder: "1//04...",
         type: "password",
         helper:
-          "Dengan Client ID + Secret + Refresh Token, VHQ akan memperbarui Access Token secara otomatis.",
+          "Dengan Client ID + Secret + Refresh Token, aplikasi akan memperbarui Access Token secara otomatis.",
       },
       {
         key: "access_token",
@@ -342,6 +343,7 @@ function getPresetScheduleISO(
 }
 
 export default function SocialHubClient() {
+  const branding = useWorkspaceBranding();
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -1711,7 +1713,7 @@ export default function SocialHubClient() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Atau Ambil dari Postingan VHQ
+                    Atau ambil dari postingan workspace
                   </label>
                   <select
                     onChange={(e) => {
@@ -1859,7 +1861,7 @@ export default function SocialHubClient() {
                   </h2>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  Kredensial disimpan secara lokal di database VHQ Anda dan
+                  Kredensial disimpan secara lokal di database workspace Anda dan
                   digunakan untuk memanggil API resmi {activeSetupMeta.label}.
                 </p>
               </div>
@@ -2010,7 +2012,7 @@ export default function SocialHubClient() {
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder={
                     studioMode === "calendar"
-                      ? "Contoh: Kampanye edukasi transformasi pembukuan UMKM dari Excel manual ke Dashboard Otomatis Solusi Macro..."
+                      ? "Contoh: Kampanye edukasi transformasi proses bisnis perusahaan Anda..."
                       : "Contoh: Buatkan konten edukasi 5 tanda keuangan UMKM bocor karena rekap manual, dan jadwalkan tayang besok pagi jam 09:00..."
                   }
                   className="w-full rounded-xl border border-white/10 bg-[#09090b] p-3.5 text-sm text-white focus:border-blue-400 focus:outline-none"
@@ -2483,7 +2485,7 @@ export default function SocialHubClient() {
                 <div className="lg:col-span-7">
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-semibold text-purple-200">
-                      ⏰ Jadwal Tayang Otomatis (Auto-Publish oleh Server VHQ)
+                      ⏰ Jadwal Tayang Otomatis (Auto-Publish oleh server)
                     </label>
                     <div className="flex items-center gap-1.5">
                       <button
@@ -2607,9 +2609,9 @@ export default function SocialHubClient() {
                         "Tambahkan contoh/ilustrasi kasus nyata operasional UMKM di Indonesia agar lebih relevan.",
                     },
                     {
-                      label: "🎯 Perkuat CTA Solusi Macro",
+                      label: `🎯 Perkuat CTA ${branding.office_name}`,
                       prompt:
-                        "Perkuat Call-to-Action di bagian akhir untuk mengajak diskusi atau konsultasi otomasi Excel/Dashboard bersama Solusi Macro.",
+                        `Perkuat Call-to-Action di bagian akhir untuk mengajak diskusi atau konsultasi bersama ${branding.office_name}.`,
                     },
                   ].map((preset) => (
                     <button

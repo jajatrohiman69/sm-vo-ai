@@ -88,7 +88,7 @@ export default function AuthGuard({
           {authState === "error" && (
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500"
+              className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
             >
               Coba lagi
             </button>

@@ -15,6 +15,22 @@ from excel_vba_service import (
 
 load_dotenv()
 
+
+def _get_workspace_identity(db_session) -> tuple[str, str]:
+    if db_session is None:
+        return "Workspace", "AI-powered operations"
+
+    from models import WorkspaceSettings
+
+    settings = db_session.query(WorkspaceSettings).first()
+    if not settings:
+        return "Workspace", "AI-powered operations"
+    return (
+        (settings.office_name or "Workspace").strip(),
+        (settings.office_subtitle or "AI-powered operations").strip(),
+    )
+
+
 # ============================================================
 # DEFAULT PRESET PROVIDERS
 # ============================================================
@@ -511,8 +527,9 @@ def ask_claude_with_model(
         provider_id=provider_id,
     )
 
+    company_name, _ = _get_workspace_identity(db_session)
     base_sys = system_prompt or (
-        "Kamu adalah AI CEO Solusi Macro Virtual HQ. "
+        f"Kamu adalah AI CEO {company_name}. "
         "Bantu Founder mengelola bisnis secara profesional. "
         "Gunakan Bahasa Indonesia yang jelas dan profesional."
     )
@@ -616,20 +633,10 @@ def execute_agent_task(
     task_desc = getattr(task, "description", "-")
     task_prio = getattr(task, "priority", "Normal")
 
-    company_name = "Solusi Macro"
-    company_focus = "Excel · Dashboard · Otomasi"
-    if db_session is not None:
-        try:
-            from models import WorkspaceSettings
-            ws = db_session.query(WorkspaceSettings).first()
-            if ws:
-                company_name = (ws.office_name or company_name).strip()
-                company_focus = (ws.office_subtitle or company_focus).strip()
-        except Exception:
-            pass
+    company_name, company_focus = _get_workspace_identity(db_session)
 
     system_prompt = f"""
-Kamu adalah {agent_name}, AI Specialist di {company_name} Virtual HQ ({company_focus}).
+Kamu adalah {agent_name}, AI Specialist di workspace {company_name} ({company_focus}).
 Nama: {agent_name} | Role: {agent_role} | Departemen: {agent_dept}
 Deskripsi: {agent_desc}
 
@@ -693,8 +700,9 @@ def generate_task_plan(
     db_session=None,
 ) -> str:
     chosen_model = resolve_ai_model(model, task_type="planner", db_session=db_session)
-    planner_prompt = """
-Kamu adalah AI CEO dan Project Planner Solusi Macro.
+    company_name, _ = _get_workspace_identity(db_session)
+    planner_prompt = f"""
+Kamu adalah AI CEO dan Project Planner {company_name}.
 Susun rencana kerja project dalam format JSON valid tanpa Markdown code fence:
 {
   "plan_title": "Judul rencana kerja",
@@ -734,8 +742,9 @@ def generate_social_content(
     db_session=None,
 ) -> dict:
     chosen_model = resolve_ai_model(model, task_type="social_post", db_session=db_session)
-    system_prompt = """
-Kamu adalah Head of Social Media Solusi Macro.
+    company_name, _ = _get_workspace_identity(db_session)
+    system_prompt = f"""
+Kamu adalah Head of Social Media {company_name}.
 Buat draf konten promosi/edukasi untuk platform yang diminta dalam JSON valid:
 {
   "title": "Judul konten",

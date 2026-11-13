@@ -7,7 +7,7 @@ agents = [
         "role": "Chief Executive Officer",
         "department": "Management",
         "status": "Online",
-        "description": "Memimpin Virtual HQ, menerima instruksi Founder, dan mendelegasikan pekerjaan."
+        "description": "Memimpin workspace, menerima instruksi Founder, dan mendelegasikan pekerjaan."
     },
     {
         "name": "Secretary",

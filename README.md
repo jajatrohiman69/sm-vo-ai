@@ -14,8 +14,8 @@ Solusi Macro Virtual HQ (VHQ) adalah platform manajemen kerja kolaboratif berbas
 ## 🌟 Fitur Utama (Key Features)
 
 ### 1. 🎮 3D Pixar-Style Virtual Office Diorama
-* **Visualisasi Kantor 3D Interaktif**: Ruang kerja isometrik hangat lengkap dengan workstation kayu, laptop dengan layar kode berpendar, tanaman monstera, area sofa lounge, beanbag, rak kopi, dan latar jendela gedung pencakar langit.
-* **8 Humanoid 3D Character Avatars**: Setiap agen AI memiliki wujud 3D bergaya Pixar dengan variasi gaya rambut, pakaian, kacamata, headphone, serta animasi napas (*breathing*), mengetik (*typing*), dan orb status aktif/idle.
+* **Visualisasi Kantor 3D Interaktif**: Ruang kerja isometrik hangat bergaya modern cozy ala Gen Z, lengkap dengan pod workstation kayu, lampu meja, huddle corner dengan pouf pastel, neon sign, tanaman monstera, area sofa lounge, rak kopi, dan latar jendela gedung pencakar langit.
+* **Dynamic Desk & Humanoid 3D Avatars**: Jumlah meja kerja, baris pod, pencahayaan, dan ukuran ruangan otomatis menyesuaikan jumlah agen di database (mendukung 8, 10, atau lebih agen aktif), lengkap dengan animasi napas (*breathing*), mengetik (*typing*), dan orb status aktif/idle.
 * **Founder / CEO Click-to-Walk**: Karakter Founder (CEO) dapat digerakkan secara interaktif ke setiap stasiun meja agen untuk berdiskusi atau memberikan tugas langsung.
 * **Dual Camera Mode**: Beralih fleksibel antara sudut pandang **2.5D Isometric Diorama** (tampilan estetik terarah) dan **3D Orbit 360°** (bisa diputar, di-zoom, dan di-pan bebas).
 
@@ -45,9 +45,11 @@ Solusi Macro Virtual HQ (VHQ) adalah platform manajemen kerja kolaboratif berbas
 * **Per-Agent Model & Endpoint Routing**: Setiap agen AI dapat diarahkan menggunakan endpoint provider dan model spesifik sesuai kebutuhan tugasnya melalui menu **Kelola Tim (`/agents`)**.
 * **Live Connection Test & Auto-Discovery Models**: Uji keaktifan endpoint beserta latensi (ms) dan pindai daftar model yang didukung (`/models`) secara otomatis dalam 1 klik.
 
-### 6. 💬 Direct Agent Room (`/ai-chat`)
+### 6. 💬 Direct Agent Room (`/ai-chat`) & Code UX
 * **Ruang Diskusi Langsung & Persona Dinamis**: Chat interaktif dengan AI CEO maupun spesialis lain dengan identitas perusahaan mengikuti pengaturan **Branding Kantor (`/settings`)**.
 * **Sticky Header, Compact Composer & Guard Output**: Header dan bar input tetap diam saat bubble chat di-scroll, dilengkapi unggah lampiran, optimasi efisiensi token riwayat, serta pembersih otomatis kebocoran *reasoning/thinking* dari model LLM.
+* **Claude-Style Pasted Code Chips**: Menempelkan kode atau teks panjang di kolom chat maupun modal tugas otomatis diringkas menjadi kartu lampiran (`CODE` / `PASTED`) dengan modal pratinjau penuh agar kotak input tetap rapi.
+* **Interactive Code Block (Salin & Lipat)**: Setiap blok kode di hasil tugas (`/tasks`) dan chat (`/ai-chat`) dilengkapi header bahasa, tombol **Salin kode** (menyalin seluruh isi blok), serta tombol **Sembunyikan / Tampilkan** untuk melipat kode panjang.
 
 ### 7. 👥 Kelola Tim & Kustomisasi Agen (`/agents`)
 * **Team Directory Modern**: Tampilan kartu grid dengan pencarian, filter departemen, ringkasan cakupan kapabilitas yang dapat dilipat, tombol chat langsung, serta modal tambah/edit agen lengkap dengan routing provider & model AI per agen.
@@ -169,6 +171,20 @@ Setelah aplikasi terbuka di `http://localhost:3000`:
 3. Masukkan **Base URL** dan **API Key / Token** Anda, lalu klik **"🔍 Tes Koneksi & Deteksi Model"**.
 4. Pilih model default, klik **"Simpan Perubahan"**, dan aktifkan provider utama.
 5. *(Opsional)* Buka menu **Kelola Tim** (`/agents`) untuk mengkustomisasi profil agen serta mengarahkan setiap agen ke provider & model AI tertentu secara terpisah.
+
+---
+
+## 🎨 White-label Workspace
+
+Setiap instalasi menggunakan satu identitas workspace. Setelah login, buka
+**Pengaturan AI & Brand** → **Brand & White-label** untuk mengatur nama,
+logo, tagline, dan warna utama. Pengaturan diterapkan pada halaman login,
+navigasi, judul browser, favicon, tema aksen, kantor 3D, prompt AI, serta
+branding file hasil yang dibuat aplikasi.
+
+Unggah logo milik Anda dan simpan perubahan branding dari halaman tersebut.
+Setiap pelanggan white-label sebaiknya menggunakan instalasi dan database
+workspace terpisah.
 
 ---
 

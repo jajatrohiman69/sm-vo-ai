@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { API_URL } from "@/lib/api";
 import MarkdownDeliverable from "@/components/markdown-deliverable";
+import { useWorkspaceBranding } from "@/components/branding-runtime";
 
 type Agent = {
   id: number;
@@ -165,6 +166,7 @@ async function fetchTaskData(): Promise<{
 }
 
 export default function TasksPage() {
+  const branding = useWorkspaceBranding();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -1329,8 +1331,8 @@ export default function TasksPage() {
 
         {/* FOOTER */}
         <footer className="border-t border-white/10 py-5 text-center text-xs text-slate-500">
-          Solusi Macro Virtual HQ · Task Management · Auto refresh setiap 5
-          detik
+          {branding.office_name} · {branding.office_badge} · Auto refresh setiap
+          5 detik
         </footer>
       </div>
     </section>

@@ -15,7 +15,7 @@ def _http_json(
     form_encoded: bool = False,
 ) -> dict[str, Any]:
     req_headers = {
-        "User-Agent": "SolusiMacroVHQ/1.0",
+        "User-Agent": "WorkspaceAPI/1.0",
         "Accept": "application/json",
     }
     if headers:

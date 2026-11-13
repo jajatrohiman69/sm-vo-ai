@@ -5,10 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   API_URL,
-  DEFAULT_WORKSPACE_SETTINGS,
   resolveLogoUrl,
-  type WorkspaceSettings,
 } from "@/lib/api";
+import { useWorkspaceBranding } from "@/components/branding-runtime";
 
 type SidebarAgent = {
   id: number;
@@ -40,19 +39,16 @@ export default function VhqShell({
   const [agents, setAgents] = useState<SidebarAgent[]>([]);
   const [projectCount, setProjectCount] = useState<number>(0);
   const [taskCount, setTaskCount] = useState<number>(0);
-  const [branding, setBranding] = useState<WorkspaceSettings>(
-    DEFAULT_WORKSPACE_SETTINGS,
-  );
+  const branding = useWorkspaceBranding();
 
   useEffect(() => {
     let active = true;
     const loadSidebarStats = async () => {
       try {
-        const [agRes, prRes, tkRes, wsRes] = await Promise.all([
+        const [agRes, prRes, tkRes] = await Promise.all([
           fetch(`${API_URL}/agents`),
           fetch(`${API_URL}/projects`),
           fetch(`${API_URL}/tasks`),
-          fetch(`${API_URL}/workspace/settings`),
         ]);
         if (!active) return;
         if (agRes.ok) {
@@ -67,23 +63,14 @@ export default function VhqShell({
           const tkData = await tkRes.json();
           if (Array.isArray(tkData)) setTaskCount(tkData.length);
         }
-        if (wsRes.ok) {
-          const wsData = await wsRes.json();
-          if (wsData?.office_name) setBranding(wsData);
-        }
       } catch {
         // ignore
       }
     };
-    const handleBrandingEvent = () => {
-      void loadSidebarStats();
-    };
     void loadSidebarStats();
-    window.addEventListener("vhq-branding-updated", handleBrandingEvent);
     const timer = setInterval(loadSidebarStats, 12000);
     return () => {
       active = false;
-      window.removeEventListener("vhq-branding-updated", handleBrandingEvent);
       clearInterval(timer);
     };
   }, []);
@@ -132,7 +119,7 @@ export default function VhqShell({
     },
     {
       href: "/settings",
-      label: "Pengaturan AI",
+      label: "Pengaturan AI & Brand",
       emoji: "⚙️",
       badge: "API Hub",
     },
@@ -204,7 +191,7 @@ export default function VhqShell({
         </div>
       )}
 
-      {/* DESKTOP SIDEBAR (Styled like KolegAI Virtual Office reference) */}
+      {/* DESKTOP SIDEBAR */}
       <aside className="hidden md:flex w-60 shrink-0 border-r border-white/10 bg-[#131316] px-4 py-5 flex-col justify-between sticky top-0 h-screen overflow-y-auto">
         <div className="space-y-4">
           {/* BRAND HEADER */}

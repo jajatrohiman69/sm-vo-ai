@@ -101,8 +101,8 @@ from auth import (
 APP_VERSION = "0.8.1"
 
 app = FastAPI(
-    title="Solusi Macro Virtual HQ API",
-    description="Internal AI-powered management system for Solusi Macro.",
+    title="Workspace API",
+    description="AI-powered workspace management API.",
     version=APP_VERSION,
 )
 
@@ -124,7 +124,13 @@ async def require_founder_session(request: Request, call_next):
         "/",
         "/health",
         "/auth/login",
-    }:
+    } or (
+        request.method == "GET"
+        and (
+            request.url.path == "/workspace/settings"
+            or request.url.path.startswith("/workspace/logo/")
+        )
+    ):
         return await call_next(request)
 
     if not auth_is_configured():
@@ -290,10 +296,10 @@ class AIProviderCreateRequest(BaseModel):
 # ============================================================
 
 CEO_SYSTEM_PROMPT = """
-You are the AI CEO of Solusi Macro.
+You are the AI CEO of the configured workspace.
 
 COMPANY PROFILE:
-Solusi Macro provides:
+- The workspace provides:
 - Excel and spreadsheet solutions
 - Business process automation
 - Dashboard development
@@ -640,10 +646,13 @@ def needs_social_analytics(*texts: Optional[str]) -> bool:
 
 def build_social_analytics_context(db: Session, sync_live: bool = True) -> str:
     """
-    Ringkasan data analytics sosmed nyata dari VHQ untuk diberikan ke AI Agent:
+    Ringkasan data analytics sosmed nyata dari workspace untuk diberikan ke AI Agent:
     sinkronisasi live API (bila terhubung), leaderboard engagement, dan histori posting.
     """
-    lines: list[str] = ["=== DATA ANALYTICS SOSIAL MEDIA SOLUSI MACRO (DARI VHQ) ==="]
+    workspace_name = (
+        _get_or_create_workspace_settings(db).office_name or "Workspace"
+    ).strip() or "Workspace"
+    lines: list[str] = [f"=== DATA ANALYTICS SOSIAL MEDIA {workspace_name.upper()} ==="]
     sync_note = ""
 
     if sync_live:
@@ -695,7 +704,7 @@ def build_social_analytics_context(db: Session, sync_live: bool = True) -> str:
         )
 
     lines.append(
-        f"\n[B] DATA MANUAL / BENCHMARK DI VHQ (diinput Founder atau contoh bawaan, "
+        f"\n[B] DATA MANUAL / BENCHMARK DI WORKSPACE (diinput Founder atau contoh bawaan, "
         f"BUKAN otomatis dari akun): {len(manual)} postingan"
     )
     lines.extend(fmt(m) for m in manual[:10])
@@ -709,7 +718,7 @@ def build_social_analytics_context(db: Session, sync_live: bool = True) -> str:
         )
     except Exception:
         posts = []
-    lines.append(f"\n[C] HISTORI POSTINGAN DI SOCIAL HUB VHQ: {len(posts)} terakhir")
+    lines.append(f"\n[C] HISTORI POSTINGAN DI SOCIAL HUB {workspace_name}: {len(posts)} terakhir")
     for p in posts:
         lines.append(
             f"- #{p.id} \"{(p.title or '')[:80]}\" | status={p.status} | "
@@ -810,12 +819,15 @@ def execute_approved_plan(task_ids: list[int]):
             )
 
             task_context_text = f"{task_title} {task.description or ''}"
+            workspace_settings = _get_or_create_workspace_settings(db)
             result, _ = extract_and_compile_artifacts(
                 result,
                 prefix=f"{agent_name}_{task_title[:28]}",
                 force_excel_if_table=needs_excel_vba_builder(task_context_text),
                 force_documents=needs_document_artifacts(task_context_text),
                 document_title=task_title,
+                brand_name=workspace_settings.office_name or "Workspace",
+                brand_color=workspace_settings.brand_color or "#4f46e5",
             )
 
             task.result = result
@@ -924,10 +936,11 @@ def get_current_founder():
 
 
 @app.get("/")
-def root():
+def root(db: Session = Depends(get_db)):
+    settings = db.query(WorkspaceSettings).first()
     return {
         "success": True,
-        "application": "Solusi Macro Virtual HQ",
+        "application": settings.office_name if settings else "Workspace",
         "version": APP_VERSION,
         "status": "online",
     }
@@ -1972,11 +1985,12 @@ def get_ai_status(db: Session = Depends(get_db)):
 
 
 @app.post("/ai/test")
-def test_ai_connection():
+def test_ai_connection(db: Session = Depends(get_db)):
     try:
         response = ask_claude(
-            message="Balas singkat: AI CEO Solusi Macro online.",
-            system_prompt=CEO_SYSTEM_PROMPT,
+            message="Balas singkat: AI CEO online.",
+            system_prompt=build_ceo_system_prompt(db),
+            db_session=db,
         )
 
         return {
@@ -2466,7 +2480,7 @@ def ai_ceo_chat(
 
     if target_agent and target_agent.name.upper() != "AI CEO":
         base_persona_prompt = f"""
-Kamu adalah {target_agent.name}, AI Specialist di {company_name} Virtual HQ.
+Kamu adalah {target_agent.name}, AI Specialist di workspace {company_name}.
 
 IDENTITAS AGENT:
 - Nama: {target_agent.name}
@@ -2525,6 +2539,7 @@ ATURAN DISKUSI DENGAN FOUNDER:
         if (payload.model and payload.model.strip() and payload.model.strip() != "auto")
         else agent_preferred_model
     )
+    workspace_settings = _get_or_create_workspace_settings(db)
 
     try:
         response, actual_model = ask_claude_with_model(
@@ -2544,6 +2559,8 @@ ATURAN DISKUSI DENGAN FOUNDER:
             force_documents=needs_document_artifacts(message),
             auto_extract_code=needs_code_artifacts(message) or needs_excel_vba_builder(message),
             document_title=f"Hasil Diskusi {responder_label}",
+            brand_name=workspace_settings.office_name or "Workspace",
+            brand_color=workspace_settings.brand_color or "#4f46e5",
         )
 
         assistant_message = ChatMessage(
@@ -3339,7 +3356,7 @@ def _send_to_gas_webhook(
         headers={
             "Content-Type": "application/json",
             "Accept": "application/json, text/plain, */*",
-            "User-Agent": "SolusiMacroVHQ/0.8",
+            "User-Agent": "WorkspaceAPI/0.8",
         },
         method="POST",
     )
@@ -3433,7 +3450,7 @@ def test_social_gas_connection(db: Session = Depends(get_db)):
 
     test_payload = {
         "action": "ping",
-        "source": "Solusi Macro Virtual HQ",
+        "source": _get_or_create_workspace_settings(db).office_name or "Workspace",
         "secret": config.gas_secret_key or "",
         "timestamp": datetime.now().isoformat(),
     }
@@ -3688,7 +3705,7 @@ def push_social_post_to_gas(
 
     gas_payload = {
         "action": payload.action if payload else "publish_or_queue",
-        "source": "Solusi Macro Virtual HQ",
+        "source": _get_or_create_workspace_settings(db).office_name or "Workspace",
         "secret": config.gas_secret_key or "",
         "post_id": post.id,
         "title": post.title,
@@ -4717,7 +4734,7 @@ def sync_live_engagement_from_apis(db: Session = Depends(get_db)):
         "message": (
             f"Berhasil menyinkronkan {synced_count} histori postingan dari API sosmed."
             if synced_count > 0
-            else "Menampilkan histori benchmark engagement terbaik yang tersimpan di VHQ."
+            else "Menampilkan histori benchmark engagement terbaik yang tersimpan di workspace."
         ),
         "metrics": [_serialize_post_metric(m) for m in metrics],
     }
@@ -4811,6 +4828,10 @@ class WorkspaceSettingsUpdate(BaseModel):
     office_subtitle: Optional[str] = None
     office_badge: Optional[str] = None
     logo_url: Optional[str] = None
+    brand_color: Optional[str] = Field(
+        default=None,
+        pattern=r"^#[0-9A-Fa-f]{6}$",
+    )
     led_line_1: Optional[str] = None
     led_line_2: Optional[str] = None
     chalk_line_1: Optional[str] = None
@@ -4835,6 +4856,7 @@ def _serialize_workspace_settings(s: WorkspaceSettings) -> dict[str, Any]:
         "office_subtitle": s.office_subtitle or "Excel · Dashboard · Otomasi",
         "office_badge": s.office_badge or "Virtual Office · AI Team",
         "logo_url": s.logo_url or "/solusi-macro-logo.png",
+        "brand_color": s.brand_color or "#4f46e5",
         "led_line_1": s.led_line_1 or "DREAM IT",
         "led_line_2": s.led_line_2 or "MAKE IT REAL",
         "chalk_line_1": s.chalk_line_1 or "Good",
@@ -4935,16 +4957,26 @@ def startup_event():
         Base.metadata.create_all(bind=engine)
         inspector = inspect(engine)
         agent_cols = {col["name"] for col in inspector.get_columns("agents")}
+        workspace_cols = {
+            col["name"] for col in inspector.get_columns("workspace_settings")
+        }
         with engine.begin() as conn:
             if "preferred_provider_id" not in agent_cols:
                 conn.execute(text("ALTER TABLE agents ADD COLUMN preferred_provider_id VARCHAR"))
             if "preferred_model" not in agent_cols:
                 conn.execute(text("ALTER TABLE agents ADD COLUMN preferred_model VARCHAR"))
+            if "brand_color" not in workspace_cols:
+                conn.execute(
+                    text(
+                        "ALTER TABLE workspace_settings "
+                        "ADD COLUMN brand_color VARCHAR(7) DEFAULT '#4f46e5'"
+                    )
+                )
     except Exception as exc:
         print(f"[Migration warning] {exc}")
 
     print("==========================================")
-    print(" SOLUSI MACRO VIRTUAL HQ")
+    print(" WORKSPACE")
     print(" Backend API is running")
     print(f" Version: {APP_VERSION}")
     print(" AI Agent Executor: ENABLED")

@@ -68,7 +68,7 @@ EXCEL_VBA_BUILDER_INSTRUCTIONS = """
 ============================================================
 INSTRUKSI KHUSUS: GENERATOR ARTIFACT LENGKAP (.XLSX PRO, .BAS, .DOCX, .PDF, SCRIPT, .ZIP)
 ============================================================
-Sistem Solusi Macro VHQ mendukung kompilasi otomatis berbagai artifact siap unduh:
+Workspace ini mendukung kompilasi otomatis berbagai artifact siap unduh:
 1. **Excel Workbook (`.xlsx`)**: Jika merancang atau memperbaiki struktur Sheet Excel, SERTAKAN blok ` ```excel-spec ... ``` ` dengan JSON valid. Anda dapat memakai fitur pro seperti `title`, `subtitle`, `kpi_cards`, `column_formats` (`currency`/`percent`/`number`/`date`/`text`), `validations` (dropdown), `conditional_rules` (`data_bar`/`color_scale`), dan `charts` (`bar`/`line`/`pie`).
 2. **Macro VBA (`.bas`)**: Jika ada kode Macro VBA, WAJIB tulis lengkap di dalam blok ` ```vba ... ``` ` (dengan `Option Explicit` dan `Sub ... End Sub`).
 3. **Script & Data (`.py`, `.gs`, `.sql`, `.csv`, `.json`, `.html`)**: Blok kode Python (` ```python `), Google Apps Script (` ```gs `), SQL (` ```sql `), CSV (` ```csv `), atau HTML (` ```html `) otomatis dikompilasi menjadi file terpisah.
@@ -77,12 +77,12 @@ Sistem Solusi Macro VHQ mendukung kompilasi otomatis berbagai artifact siap undu
 Contoh `excel-spec` Pro:
 ```excel-spec
 {
-  "filename": "Sistem_Otomasi_SolusiMacro.xlsx",
+  "filename": "Sistem_Otomasi.xlsx",
   "sheets": [
     {
       "name": "Data_Transaksi",
       "title": "LAPORAN TRANSAKSI & KPI PENJUALAN",
-      "subtitle": "Dibuat otomatis oleh Solusi Macro Virtual HQ",
+      "subtitle": "Dibuat otomatis oleh workspace",
       "kpi_cards": [
         {"label": "Total Omzet", "value": "=SUM(G7:G8)"},
         {"label": "Total Qty", "value": "=SUM(D7:D8)"}
@@ -484,7 +484,26 @@ def _apply_column_format(cell: Any, col_fmt: str | None, parsed_val: Any) -> Non
         cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
 
-def build_xlsx_from_spec(spec: dict[str, Any], fallback_prefix: str = "SolusiMacro") -> dict[str, Any]:
+def _brand_colors(brand_color: str) -> tuple[str, str, str]:
+    if not re.fullmatch(r"#[0-9a-fA-F]{6}", brand_color or ""):
+        brand_color = "#4f46e5"
+    channels = [int(brand_color[index : index + 2], 16) for index in (1, 3, 5)]
+
+    def mix(target: int, amount: float) -> str:
+        return "".join(
+            f"{round(channel + (target - channel) * amount):02X}"
+            for channel in channels
+        )
+
+    return brand_color[1:].upper(), mix(0, 0.25), mix(255, 0.9)
+
+
+def build_xlsx_from_spec(
+    spec: dict[str, Any],
+    fallback_prefix: str = "Workspace",
+    brand_name: str = "Workspace",
+    brand_color: str = "#4f46e5",
+) -> dict[str, Any]:
     """
     Membangun file .xlsx profesional menggunakan openpyxl dari spesifikasi JSON agent.
     Mendukung title/subtitle banner, KPI cards, column_formats, freeze panes,
@@ -495,18 +514,19 @@ def build_xlsx_from_spec(spec: dict[str, Any], fallback_prefix: str = "SolusiMac
     if sheets_data:
         wb.remove(wb.active)
 
-    banner_fill = PatternFill(start_color="1E1B4B", end_color="1E1B4B", fill_type="solid")
+    primary_color, dark_color, light_color = _brand_colors(brand_color)
+    banner_fill = PatternFill(start_color=primary_color, end_color=primary_color, fill_type="solid")
     banner_font = Font(name="Calibri", size=14, bold=True, color="FFFFFF")
     subtitle_font = Font(name="Calibri", size=10, italic=True, color="CBD5E1")
-    kpi_label_fill = PatternFill(start_color="EEF2FF", end_color="EEF2FF", fill_type="solid")
-    kpi_label_font = Font(name="Calibri", size=9, bold=True, color="4338CA")
+    kpi_label_fill = PatternFill(start_color=light_color, end_color=light_color, fill_type="solid")
+    kpi_label_font = Font(name="Calibri", size=9, bold=True, color=dark_color)
     kpi_val_font = Font(name="Calibri", size=12, bold=True, color="0F172A")
 
-    header_fill = PatternFill(start_color="3B3754", end_color="3B3754", fill_type="solid")
+    header_fill = PatternFill(start_color=dark_color, end_color=dark_color, fill_type="solid")
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
     zebra_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
-    total_fill = PatternFill(start_color="F3E8FF", end_color="F3E8FF", fill_type="solid")
-    total_font = Font(name="Calibri", size=11, bold=True, color="1E1B4B")
+    total_fill = PatternFill(start_color=light_color, end_color=light_color, fill_type="solid")
+    total_font = Font(name="Calibri", size=11, bold=True, color=dark_color)
     regular_font = Font(name="Calibri", size=11, color="18181B")
     formula_font = Font(name="Calibri", size=11, bold=True, color="0F766E")
 
@@ -711,8 +731,8 @@ def build_xlsx_from_spec(spec: dict[str, Any], fallback_prefix: str = "SolusiMac
 
     if not wb.sheetnames:
         ws = wb.active
-        ws.title = "SolusiMacro_Output"
-        ws["A1"] = "Solusi Macro Virtual HQ"
+        ws.title = "Workspace_Output"
+        ws["A1"] = f"{brand_name} Workspace"
 
     raw_fname = str(spec.get("filename") or f"{fallback_prefix}.xlsx")
     if not raw_fname.lower().endswith(".xlsx"):
@@ -771,8 +791,10 @@ def _clean_markdown_for_document(markdown_text: str) -> str:
 
 def build_docx_from_markdown(
     markdown_text: str,
-    title: str = "Dokumen Solusi Macro VHQ",
-    fallback_prefix: str = "SolusiMacro_Dokumen",
+    title: str = "Workspace Document",
+    fallback_prefix: str = "Workspace_Dokumen",
+    brand_name: str = "Workspace",
+    brand_color: str = "#4f46e5",
 ) -> dict[str, Any] | None:
     if not HAS_DOCX:
         return None
@@ -786,8 +808,11 @@ def build_docx_from_markdown(
 
     title_p = doc.add_heading(title, level=0)
     title_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    title_p.runs[0].font.color.rgb = RGBColor(
+        *[int(_brand_colors(brand_color)[0][i : i + 2], 16) for i in (0, 2, 4)]
+    )
     meta_p = doc.add_paragraph(
-        f"Solusi Macro Virtual HQ  •  Dibuat otomatis pada {datetime.now().strftime('%d %b %Y, %H:%M')}"
+        f"{brand_name}  •  Dibuat otomatis pada {datetime.now().strftime('%d %b %Y, %H:%M')}"
     )
     meta_run = meta_p.runs[0]
     meta_run.font.size = Pt(9)
@@ -886,8 +911,10 @@ def build_docx_from_markdown(
 
 def build_pdf_from_markdown(
     markdown_text: str,
-    title: str = "Dokumen Solusi Macro VHQ",
-    fallback_prefix: str = "SolusiMacro_Dokumen",
+    title: str = "Workspace Document",
+    fallback_prefix: str = "Workspace_Dokumen",
+    brand_name: str = "Workspace",
+    brand_color: str = "#4f46e5",
 ) -> dict[str, Any] | None:
     if not HAS_REPORTLAB:
         return None
@@ -902,12 +929,14 @@ def build_pdf_from_markdown(
         bottomMargin=18 * mm,
     )
     styles = getSampleStyleSheet()
+    primary_color = f"#{_brand_colors(brand_color)[0]}"
+    dark_color = f"#{_brand_colors(brand_color)[1]}"
     title_style = ParagraphStyle(
         "VHQTitle",
         parent=styles["Heading1"],
         fontSize=16,
         leading=20,
-        textColor=rl_colors.HexColor("#1E1B4B"),
+        textColor=rl_colors.HexColor(primary_color),
         spaceAfter=4,
     )
     meta_style = ParagraphStyle(
@@ -922,7 +951,7 @@ def build_pdf_from_markdown(
         parent=styles["Heading2"],
         fontSize=12.5,
         leading=16,
-        textColor=rl_colors.HexColor("#1E3A8A"),
+        textColor=rl_colors.HexColor(dark_color),
         spaceBefore=10,
         spaceAfter=4,
     )
@@ -955,7 +984,7 @@ def build_pdf_from_markdown(
     story: list[Any] = [
         Paragraph(xml_escape(title), title_style),
         Paragraph(
-            xml_escape(f"Solusi Macro Virtual HQ  •  {datetime.now().strftime('%d %b %Y, %H:%M')}"),
+            xml_escape(f"{brand_name}  •  {datetime.now().strftime('%d %b %Y, %H:%M')}"),
             meta_style,
         ),
     ]
@@ -1150,11 +1179,13 @@ def _extract_markdown_tables_as_spec(markdown_text: str, prefix: str) -> dict[st
 
 def extract_and_compile_artifacts(
     markdown_text: str,
-    prefix: str = "SolusiMacro",
+    prefix: str | None = None,
     force_excel_if_table: bool = False,
     force_documents: bool = False,
     auto_extract_code: bool = True,
     document_title: str | None = None,
+    brand_name: str = "Workspace",
+    brand_color: str = "#4f46e5",
 ) -> tuple[str, list[dict[str, Any]]]:
     """
     Memindai output Markdown dari AI Agent dan mengompilasi semua artifact siap unduh:
@@ -1167,7 +1198,10 @@ def extract_and_compile_artifacts(
     if not markdown_text:
         return markdown_text, []
 
-    safe_prefix = re.sub(r"[^a-zA-Z0-9_\-]", "_", prefix).strip("_") or "SolusiMacro"
+    display_brand_name = " ".join((brand_name or "Workspace").split()) or "Workspace"
+    safe_prefix = re.sub(
+        r"[^a-zA-Z0-9_\-]", "_", prefix or display_brand_name
+    ).strip("_") or "Workspace"
     generated_files: list[dict[str, Any]] = []
     cleaned_markdown = markdown_text
     artifact_warnings: list[str] = []
@@ -1195,7 +1229,12 @@ def extract_and_compile_artifacts(
             continue
 
         generated_files.append(
-            build_xlsx_from_spec(spec_obj, fallback_prefix=safe_prefix)
+            build_xlsx_from_spec(
+                spec_obj,
+                fallback_prefix=safe_prefix,
+                brand_name=display_brand_name,
+                brand_color=brand_color,
+            )
         )
         cleaned_markdown = cleaned_markdown.replace(match.group(0), "", 1)
 
@@ -1229,7 +1268,12 @@ def extract_and_compile_artifacts(
                 continue
 
             generated_files.append(
-                build_xlsx_from_spec(json_obj, fallback_prefix=safe_prefix)
+                build_xlsx_from_spec(
+                    json_obj,
+                    fallback_prefix=safe_prefix,
+                    brand_name=display_brand_name,
+                    brand_color=brand_color,
+                )
             )
 
     # Fallback tabel Markdown -> Excel (.xlsx)
@@ -1237,7 +1281,12 @@ def extract_and_compile_artifacts(
         fallback_spec = _extract_markdown_tables_as_spec(cleaned_markdown, prefix=safe_prefix)
         if fallback_spec:
             generated_files.append(
-                build_xlsx_from_spec(fallback_spec, fallback_prefix=safe_prefix)
+                build_xlsx_from_spec(
+                    fallback_spec,
+                    fallback_prefix=safe_prefix,
+                    brand_name=display_brand_name,
+                    brand_color=brand_color,
+                )
             )
 
     # 2. Cari blok ```vba ... ``` atau ```vb ... ```
@@ -1245,10 +1294,13 @@ def extract_and_compile_artifacts(
     vba_matches = vba_pattern.findall(markdown_text)
 
     if vba_matches:
+        module_name = re.sub(r"[^a-zA-Z0-9_]", "_", safe_prefix)[:20]
+        if not module_name or not module_name[0].isalpha():
+            module_name = f"Workspace_{module_name}"[:20]
         combined_vba_parts = [
-            'Attribute VB_Name = "SolusiMacro_Automation"\r\n'
+            f'Attribute VB_Name = "{module_name}_Automation"\r\n'
             "' ============================================================\r\n"
-            "' Modul Macro VBA — Dihasilkan oleh Solusi Macro Virtual HQ\r\n"
+            f"' Modul Macro VBA — Dihasilkan oleh {display_brand_name}\r\n"
             f"' Tanggal: {datetime.now().strftime('%Y-%m-%d %H:%M')}\r\n"
             "' Cara Pakai: Buka Excel -> Tekan Alt+F11 -> File -> Import File\r\n"
             "' ============================================================\r\n"
@@ -1276,7 +1328,11 @@ def extract_and_compile_artifacts(
         doc_title = document_title or safe_prefix.replace("_", " ")
         try:
             docx_file = build_docx_from_markdown(
-                cleaned_markdown, title=doc_title, fallback_prefix=safe_prefix
+                cleaned_markdown,
+                title=doc_title,
+                fallback_prefix=safe_prefix,
+                brand_name=display_brand_name,
+                brand_color=brand_color,
             )
             if docx_file:
                 generated_files.append(docx_file)
@@ -1284,7 +1340,11 @@ def extract_and_compile_artifacts(
             pass
         try:
             pdf_file = build_pdf_from_markdown(
-                cleaned_markdown, title=doc_title, fallback_prefix=safe_prefix
+                cleaned_markdown,
+                title=doc_title,
+                fallback_prefix=safe_prefix,
+                brand_name=display_brand_name,
+                brand_color=brand_color,
             )
             if pdf_file:
                 generated_files.append(pdf_file)
@@ -1321,7 +1381,7 @@ def extract_and_compile_artifacts(
         download_section = [
             "\n\n---",
             "### 📦 Artifact & File Kerja Siap Unduh",
-            "Sistem Solusi Macro VHQ telah merakit file siap pakai dari hasil di atas:",
+            f"{display_brand_name} telah merakit file siap pakai dari hasil di atas:",
         ]
         for gf in generated_files:
             icon = icon_map.get(gf["kind"], "📎")

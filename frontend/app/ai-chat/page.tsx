@@ -10,6 +10,8 @@ import {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import CodeBlock from "@/components/code-block";
+import { PastedChips, usePastedBlocks } from "@/components/pasted-blocks";
 import ArtifactCards, {
   parseArtifactsFromMarkdown,
 } from "@/components/artifact-cards";
@@ -58,13 +60,13 @@ const agentIcons: Record<string, string> = {
 
 const rolePrompts: Record<string, string[]> = {
   "AI CEO": [
-    "Analisis kondisi Virtual HQ saat ini.",
+    "Analisis kondisi workspace saat ini.",
     "Buat strategi mendapatkan 10 klien UMKM.",
     "Apa prioritas bisnis yang harus saya kerjakan minggu ini?",
     "Evaluasi seluruh project dan task yang sedang berjalan.",
   ],
   Secretary: [
-    "Susun SOP administrasi penerimaan klien baru Solusi Macro.",
+    "Susun SOP administrasi penerimaan klien baru.",
     "Buat template notulensi meeting dan jadwal mingguan proyek.",
   ],
   "Business Analyst": [
@@ -159,6 +161,7 @@ export default function AICEOChatPage() {
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [attachmentError, setAttachmentError] = useState("");
+  const pasted = usePastedBlocks();
 
   useEffect(() => {
     let active = true;
@@ -262,10 +265,19 @@ export default function AICEOChatPage() {
 
     const message = input.trim();
 
-    if ((!message && attachments.length === 0) || loading || uploadingFiles) {
+    if (
+      (!message && attachments.length === 0 && pasted.blocks.length === 0) ||
+      loading ||
+      uploadingFiles
+    ) {
       return;
     }
-    const prompt = message || "Tolong analisis file yang saya lampirkan.";
+    const baseMessage =
+      message ||
+      (pasted.blocks.length > 0
+        ? "Tolong analisis teks/kode berikut."
+        : "Tolong analisis file yang saya lampirkan.");
+    const prompt = pasted.compose(baseMessage);
     const visibleMessage =
       attachments.length > 0
         ? `${prompt}\n\n📎 ${attachments.map((file) => file.filename).join(", ")}`
@@ -274,6 +286,7 @@ export default function AICEOChatPage() {
     setError("");
     setAttachmentError("");
     setInput("");
+    pasted.clear();
     setLoading(true);
 
     setMessages((previous) => [
@@ -435,7 +448,7 @@ export default function AICEOChatPage() {
               onChange={(event) => setSelectedProjectId(event.target.value)}
               className="rounded-xl border border-white/10 bg-[#131316] px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-400"
             >
-              <option value="">🌐 Konteks: Seluruh VHQ</option>
+              <option value="">🌐 Konteks: Seluruh workspace</option>
               {projects.map((project) => (
                 <option key={project.id} value={String(project.id)}>
                   📁 Fokus Proyek: {project.name}
@@ -625,9 +638,9 @@ export default function AICEOChatPage() {
                         </td>
                       ),
                       pre: ({ children }) => (
-                        <pre className="my-3 overflow-x-auto rounded-lg border border-white/10 bg-[#09090b] p-3 text-xs leading-5 text-emerald-300">
+                        <CodeBlock preClassName="overflow-x-auto p-3 text-xs leading-5 text-emerald-300">
                           {children}
-                        </pre>
+                        </CodeBlock>
                       ),
                       code: ({ className, children }) => {
                         if (className) {
@@ -719,6 +732,15 @@ export default function AICEOChatPage() {
             className="hidden"
             onChange={handleFilesSelected}
           />
+          {pasted.blocks.length > 0 && (
+            <div className="mb-2">
+              <PastedChips
+                blocks={pasted.blocks}
+                onRemove={pasted.remove}
+                disabled={loading}
+              />
+            </div>
+          )}
           <div className="flex items-end gap-2 rounded-2xl border border-white/15 bg-[#121624] px-3 py-2 shadow-lg focus-within:border-blue-400/60 focus-within:ring-1 focus-within:ring-blue-400/20 transition">
             <button
               type="button"
@@ -736,6 +758,7 @@ export default function AICEOChatPage() {
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
+              onPaste={pasted.onPaste}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
@@ -753,7 +776,9 @@ export default function AICEOChatPage() {
               disabled={
                 loading ||
                 uploadingFiles ||
-                (!input.trim() && attachments.length === 0)
+                (!input.trim() &&
+                  attachments.length === 0 &&
+                  pasted.blocks.length === 0)
               }
               className="shrink-0 h-8 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed px-3.5 text-xs font-semibold text-white shadow-sm transition"
             >

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthGuard from "@/components/auth-guard";
+import BrandingRuntime from "@/components/branding-runtime";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Solusi Macro Virtual HQ",
-  description: "AI-powered workspace untuk mengelola project dan task.",
+  title: "Workspace",
+  description: "AI-powered workspace management.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -25,7 +26,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AuthGuard>{children}</AuthGuard>
+        <BrandingRuntime>
+          <AuthGuard>{children}</AuthGuard>
+        </BrandingRuntime>
       </body>
     </html>
   );

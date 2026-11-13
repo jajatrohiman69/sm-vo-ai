@@ -365,11 +365,11 @@ export default function AISettingsPage() {
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">⚙️</span>
             <h1 className="text-2xl font-black tracking-tight text-white">
-              Pengaturan VHQ & AI Hub
+              Pengaturan Workspace & AI Hub
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
-            Atur endpoint API AI (OCTA, Gemini, OpenAI-Compatible, Groq, Ollama) serta kustomisasi nama kantor, logo brand, dan teks papan 3D langsung dari browser.
+            Kelola provider AI dan white-label workspace: nama, logo, warna utama, serta teks kantor 3D.
           </p>
           {/* TAB SWITCHER */}
           <div className="flex flex-wrap gap-2 mt-4">
@@ -393,7 +393,7 @@ export default function AISettingsPage() {
                   : "border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              🎨 Branding Kantor & Teks 3D
+              🎨 Brand & White-label
             </button>
           </div>
         </div>
@@ -799,7 +799,7 @@ export default function AISettingsPage() {
                   required
                   value={branding.office_name}
                   onChange={(e) => setBranding({ ...branding, office_name: e.target.value })}
-                  placeholder="Contoh: Solusi Macro"
+                  placeholder="Nama perusahaan atau brand"
                   className="w-full rounded-xl border border-white/10 bg-[#090b14] px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-400"
                 />
               </div>
@@ -828,6 +828,32 @@ export default function AISettingsPage() {
                   placeholder="Contoh: Virtual Office · AI Team"
                   className="w-full rounded-xl border border-white/10 bg-[#090b14] px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-400"
                 />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="brand-color"
+                  className="block text-xs font-bold text-slate-300 mb-1.5"
+                >
+                  Warna Utama Brand
+                </label>
+                <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#090b14] px-3 py-2">
+                  <input
+                    id="brand-color"
+                    type="color"
+                    value={branding.brand_color || "#4f46e5"}
+                    onChange={(e) =>
+                      setBranding({ ...branding, brand_color: e.target.value })
+                    }
+                    className="h-9 w-12 cursor-pointer rounded border-0 bg-transparent p-0"
+                  />
+                  <span className="text-xs text-slate-400">
+                    Dipakai oleh tombol, tautan, dan elemen aksen utama.
+                  </span>
+                  <span className="ml-auto font-mono text-xs text-slate-200">
+                    {branding.brand_color}
+                  </span>
+                </div>
               </div>
             </div>
 

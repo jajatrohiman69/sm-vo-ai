@@ -40,6 +40,7 @@ export type WorkspaceSettings = {
   office_subtitle: string;
   office_badge: string;
   logo_url: string;
+  brand_color: string;
   led_line_1: string;
   led_line_2: string;
   chalk_line_1: string;
@@ -53,6 +54,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   office_subtitle: "Excel · Dashboard · Otomasi",
   office_badge: "Virtual Office · AI Team",
   logo_url: "/solusi-macro-logo.png",
+  brand_color: "#4f46e5",
   led_line_1: "DREAM IT",
   led_line_2: "MAKE IT REAL",
   chalk_line_1: "Good",

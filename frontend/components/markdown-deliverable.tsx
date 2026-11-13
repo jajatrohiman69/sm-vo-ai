@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import CodeBlock from "./code-block";
 import ArtifactCards, { parseArtifactsFromMarkdown } from "./artifact-cards";
 
 export default function MarkdownDeliverable({
@@ -190,9 +191,9 @@ export default function MarkdownDeliverable({
               </td>
             ),
             pre: ({ children }) => (
-              <pre className="my-4 overflow-x-auto rounded-xl border border-white/10 bg-[#09090b] p-4 text-xs leading-6 text-blue-100 shadow-inner">
+              <CodeBlock preClassName="overflow-x-auto p-4 text-xs leading-6 text-blue-100">
                 {children}
-              </pre>
+              </CodeBlock>
             ),
             code: ({ className, children }) => {
               const isBlock = Boolean(className);

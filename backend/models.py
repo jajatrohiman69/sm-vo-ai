@@ -284,6 +284,7 @@ class WorkspaceSettings(Base):
     office_subtitle = Column(String, default="Excel · Dashboard · Otomasi")
     office_badge = Column(String, default="Virtual Office · AI Team")
     logo_url = Column(String, default="/solusi-macro-logo.png")
+    brand_color = Column(String(7), default="#4f46e5")
     led_line_1 = Column(String, default="DREAM IT")
     led_line_2 = Column(String, default="MAKE IT REAL")
     chalk_line_1 = Column(String, default="Good")

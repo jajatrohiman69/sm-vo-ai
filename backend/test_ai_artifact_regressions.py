@@ -10,6 +10,33 @@ from openpyxl import load_workbook
 
 
 class ExcelArtifactRegressionTests(unittest.TestCase):
+    def test_workspace_branding_is_applied_to_generated_workbooks(self):
+        spec = {
+            "sheets": [
+                {
+                    "name": "Summary",
+                    "title": "Brand report",
+                    "headers": ["Metric"],
+                    "rows": [["Value"]],
+                }
+            ]
+        }
+
+        with tempfile.TemporaryDirectory() as output_dir:
+            with patch.object(excel_vba_service, "STORAGE_DIR", output_dir):
+                artifact = excel_vba_service.build_xlsx_from_spec(
+                    spec,
+                    brand_name="Acme",
+                    brand_color="#123456",
+                )
+                workbook = load_workbook(
+                    os.path.join(output_dir, artifact["stored_name"])
+                )
+
+        title_cell = workbook["Summary"]["A1"]
+        self.assertEqual(title_cell.value, "Brand report")
+        self.assertTrue(title_cell.fill.fgColor.rgb.endswith("123456"))
+
     def test_json_workbook_spec_is_compiled_to_xlsx(self):
         response = """Workbook:
 ```json

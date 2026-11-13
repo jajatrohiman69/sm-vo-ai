@@ -2,7 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_URL } from "@/lib/api";
+import { API_URL, resolveLogoUrl } from "@/lib/api";
+import { useWorkspaceBranding } from "@/components/branding-runtime";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const branding = useWorkspaceBranding();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,9 +48,17 @@ export default function LoginPage() {
         onSubmit={handleSubmit}
         className="w-full max-w-md rounded-2xl border border-white/10 bg-[#131316] p-8 shadow-2xl"
       >
-        <p className="text-xs font-semibold tracking-[0.2em] text-blue-300">
-          SOLUSI MACRO · VIRTUAL HQ
-        </p>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={resolveLogoUrl(branding.logo_url)}
+            alt={`Logo ${branding.office_name}`}
+            className="h-10 w-10 rounded-lg object-cover"
+          />
+          <p className="text-xs font-semibold tracking-[0.2em] text-indigo-300">
+            {branding.office_name} · {branding.office_badge}
+          </p>
+        </div>
         <h1 className="mt-3 text-2xl font-bold">Login Founder</h1>
         <p className="mt-2 text-sm text-slate-400">
           Masuk untuk mengelola project, AI agents, dan task.
@@ -63,7 +73,7 @@ export default function LoginPage() {
           required
           value={username}
           onChange={(event) => setUsername(event.target.value)}
-          className="mt-2 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm outline-none focus:border-blue-400"
+          className="mt-2 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm outline-none focus:border-indigo-400"
         />
 
         <label className="mt-5 block text-sm text-slate-300" htmlFor="password">
@@ -76,7 +86,7 @@ export default function LoginPage() {
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="mt-2 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm outline-none focus:border-blue-400"
+          className="mt-2 w-full rounded-lg border border-white/10 bg-[#09090b] p-3 text-sm outline-none focus:border-indigo-400"
         />
 
         {error && (
@@ -88,7 +98,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-6 w-full rounded-lg bg-blue-600 p-3 text-sm font-semibold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-6 w-full rounded-lg bg-indigo-600 p-3 text-sm font-semibold hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "Memverifikasi..." : "Masuk"}
         </button>

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { API_URL } from "@/lib/api";
+import { useWorkspaceBranding } from "@/components/branding-runtime";
 
 type Project = {
   id: number;
@@ -21,6 +22,7 @@ async function fetchProjects(): Promise<Project[]> {
 }
 
 export default function ProjectsPage() {
+  const branding = useWorkspaceBranding();
   const [projects, setProjects] = useState<Project[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -159,11 +161,11 @@ export default function ProjectsPage() {
     <section className="flex-1 min-w-0 p-6 md:p-10">
       <header className="mb-8">
         <p className="text-xs font-semibold tracking-widest text-blue-400">
-          SOLUSI MACRO / PROJECTS
+          {branding.office_name.toUpperCase()} / PROJECTS
         </p>
         <h2 className="text-3xl font-bold mt-2">Project Management</h2>
         <p className="text-slate-400 mt-2 text-sm">
-          Kelola dan pantau perkembangan proyek bisnis di Virtual HQ.
+          Kelola dan pantau perkembangan proyek bisnis di workspace Anda.
         </p>
       </header>
 
