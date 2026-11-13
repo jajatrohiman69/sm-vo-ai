@@ -35,6 +35,7 @@ type Message = {
   id?: number;
   role: "user" | "assistant";
   content: string;
+  model_used?: string;
   created_at?: string;
 };
 
@@ -316,6 +317,8 @@ export default function AICEOChatPage() {
         {
           role: "assistant",
           content: assistantMessage,
+          model_used:
+            typeof data.model_used === "string" ? data.model_used : undefined,
         },
       ]);
       setAttachments([]);
@@ -541,6 +544,11 @@ export default function AICEOChatPage() {
               >
                 <p className="text-xs font-semibold mb-2 opacity-70 uppercase">
                   {message.role === "user" ? "FOUNDER" : agentName}
+                  {message.model_used && (
+                    <span className="ml-2 normal-case font-normal text-slate-400">
+                      · {message.model_used}
+                    </span>
+                  )}
                 </p>
 
                 <div className="text-sm leading-relaxed text-slate-200 space-y-2">

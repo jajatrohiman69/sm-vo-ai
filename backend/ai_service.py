@@ -305,6 +305,15 @@ def _looks_like_reasoning_monologue(text: str) -> bool:
         "i should ",
         "i need to ",
         "first, let",
+        "i'll answer as",
+        "i'll build",
+        "i'll create",
+        "i'll design",
+        "i'll provide",
+        "the task is",
+        "let's design",
+        "given the artifact system",
+        "keep it reasonably",
     )
     return any(head.startswith(s) for s in starters)
 
@@ -317,9 +326,21 @@ def _strip_reasoning_leak(text: str) -> str:
     if not text:
         return ""
     cleaned = re.sub(
-        r"<(?:think|thought|reasoning)>[\s\S]*?</(?:think|thought|reasoning)>",
+        r"<ds_safety>[\s\S]*?</ds_safety>",
         "",
         text,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"<ds_safety>[\s\S]*$",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"<(think|thought|reasoning)>[\s\S]*?</\1>",
+        "",
+        cleaned,
         flags=re.IGNORECASE,
     )
     # Jika ada tag pembuka tanpa penutup karena terpotong, buang sampai sebelum jawaban atau seluruhnya
@@ -341,7 +362,7 @@ def _strip_reasoning_leak(text: str) -> str:
     # cari awal jawaban Bahasa Indonesia / Heading Markdown yang sebenarnya.
     if _looks_like_reasoning_monologue(cleaned):
         real_start = re.search(
-            r"(?m)^(?:#{1,3}\s+[^\n]+|(?:Halo|Baik|Tentu|Siap|Berikut|Untuk|Saya|Ini|Langkah|Ringkasan)\b[^\n]*)",
+            r"(?m)^(?:#{1,3}\s+(?:Berikut|Rancangan|Solusi|Hasil|Struktur|Langkah|Ringkasan|Implementasi|Aplikasi)\b[^\n]*|(?:Halo|Baik|Tentu|Siap|Berikut|Untuk|Saya|Ini|Langkah|Ringkasan)\b[^\n]*)",
             cleaned,
         )
         if real_start and real_start.start() > 0:
@@ -377,6 +398,7 @@ def _chat_completion_with_fallback(
             fallback_chain.append(mid)
 
     last_error = None
+    rejected_response = False
     for target_m in fallback_chain:
         try:
             resp = client.chat.completions.create(
@@ -387,9 +409,8 @@ def _chat_completion_with_fallback(
             )
             raw_content = (resp.choices[0].message.content or "").strip()
             content = _strip_reasoning_leak(raw_content)
-            # Jika model habis token di tengah monolog English tanpa jawaban final,
-            # coba lanjutkan ke model fallback berikutnya bila ada.
-            if content and _looks_like_reasoning_monologue(content) and len(fallback_chain) > 1:
+            if not content or _looks_like_reasoning_monologue(content):
+                rejected_response = True
                 continue
             if content:
                 return content, target_m
@@ -397,6 +418,10 @@ def _chat_completion_with_fallback(
             last_error = exc
             continue
 
+    if rejected_response:
+        raise RuntimeError(
+            f"Model {candidate_model} tidak menghasilkan jawaban final yang layak."
+        ) from last_error
     if last_error:
         raise last_error
     raise RuntimeError(f"Gagal mendapatkan output dari model {candidate_model}.")
@@ -467,7 +492,7 @@ def test_provider_connection(base_url: str, api_key: str, model: str) -> dict[st
 # AGENT & TASK EXECUTORS
 # ============================================================
 
-def ask_claude(
+def ask_claude_with_model(
     message: str,
     system_prompt: str | None = None,
     history: list[dict] | None = None,
@@ -476,7 +501,7 @@ def ask_claude(
     image_urls: list[str] | None = None,
     db_session=None,
     provider_id: str | None = None,
-) -> str:
+) -> tuple[str, str]:
     is_ceo = not agent_name or agent_name.strip().upper() == "AI CEO"
     chosen_model = resolve_ai_model(
         model,
@@ -497,8 +522,10 @@ def ask_claude(
     base_sys = (
         base_sys
         + "\n\nATURAN OUTPUT WAJIB: JANGAN menuliskan proses berpikir internal, "
-        + "monolog perencanaan bahasa Inggris ('Wait...', 'Let me...', 'Hmm...', 'The user wants...'), "
-        + "atau tag <think>. Langsung berikan jawaban final dalam Bahasa Indonesia yang rapi dan lengkap."
+        + "catatan keselamatan provider, monolog perencanaan bahasa Inggris "
+        + "('Wait...', 'Let me...', 'Hmm...', 'The user wants...'), atau tag <think>. "
+        + "Gunakan Bahasa Indonesia untuk seluruh narasi kecuali Founder secara eksplisit meminta "
+        + "bahasa lain. Langsung berikan hasil final yang rapi dan lengkap."
     )
 
     messages: list[dict] = [{"role": "system", "content": base_sys}]
@@ -508,6 +535,10 @@ def ask_claude(
             role = item.get("role") if isinstance(item, dict) else getattr(item, "role", None)
             content = item.get("content") if isinstance(item, dict) else getattr(item, "content", None)
             if role in ("user", "assistant") and content:
+                if role == "assistant":
+                    content = _strip_reasoning_leak(content)
+                    if not content or _looks_like_reasoning_monologue(content):
+                        continue
                 messages.append({"role": role, "content": content})
 
     if image_urls:
@@ -519,7 +550,7 @@ def ask_claude(
     else:
         messages.append({"role": "user", "content": message})
 
-    content, _ = _chat_completion_with_fallback(
+    return _chat_completion_with_fallback(
         model=chosen_model,
         messages=messages,
         max_tokens=8192,
@@ -527,7 +558,29 @@ def ask_claude(
         db_session=db_session,
         provider_id=provider_id,
     )
-    return content
+
+
+def ask_claude(
+    message: str,
+    system_prompt: str | None = None,
+    history: list[dict] | None = None,
+    model: str | None = None,
+    agent_name: str = "AI CEO",
+    image_urls: list[str] | None = None,
+    db_session=None,
+    provider_id: str | None = None,
+) -> str:
+    response, _ = ask_claude_with_model(
+        message=message,
+        system_prompt=system_prompt,
+        history=history,
+        model=model,
+        agent_name=agent_name,
+        image_urls=image_urls,
+        db_session=db_session,
+        provider_id=provider_id,
+    )
+    return response
 
 
 def execute_agent_task(

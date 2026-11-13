@@ -41,6 +41,7 @@ from models import (
 
 from ai_service import (
     ask_claude,
+    ask_claude_with_model,
     generate_task_plan,
     execute_agent_task,
     generate_social_content,
@@ -2526,7 +2527,7 @@ ATURAN DISKUSI DENGAN FOUNDER:
     )
 
     try:
-        response = ask_claude(
+        response, actual_model = ask_claude_with_model(
             message=message_for_ai,
             system_prompt=system_prompt,
             history=history,
@@ -2566,13 +2567,7 @@ ATURAN DISKUSI DENGAN FOUNDER:
             "success": True,
             "session_id": payload.session_id,
             "agent_name": responder_label,
-            "model_used": resolve_ai_model(
-                effective_chat_model,
-                task_type="ceo_chat" if responder_label.upper() == "AI CEO" else "agent_chat",
-                agent_role_or_name=responder_label,
-                db_session=db,
-                provider_id=agent_provider_id,
-            ),
+            "model_used": actual_model,
             "message": response,
             "artifacts": generated_artifacts,
             "created_at": assistant_message.created_at,

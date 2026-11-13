@@ -1170,31 +1170,75 @@ def extract_and_compile_artifacts(
     safe_prefix = re.sub(r"[^a-zA-Z0-9_\-]", "_", prefix).strip("_") or "SolusiMacro"
     generated_files: list[dict[str, Any]] = []
     cleaned_markdown = markdown_text
+    artifact_warnings: list[str] = []
 
     # 1. Cari blok ```excel-spec ... ```
     spec_pattern = re.compile(r"```excel-spec\s*([\s\S]*?)```", re.IGNORECASE)
-    spec_matches = spec_pattern.findall(markdown_text)
-
-    for raw_json in spec_matches:
+    for match in list(spec_pattern.finditer(markdown_text)):
         try:
-            spec_obj = json.loads(raw_json.strip())
-            if isinstance(spec_obj, dict) and spec_obj.get("sheets"):
-                compiled = build_xlsx_from_spec(spec_obj, fallback_prefix=safe_prefix)
-                generated_files.append(compiled)
-        except Exception:
+            spec_obj = json.loads(match.group(1).strip())
+        except json.JSONDecodeError as exc:
+            artifact_warnings.append(
+                f"Spesifikasi Excel tidak valid (baris {exc.lineno}): {exc.msg}."
+            )
             continue
 
-    cleaned_markdown = spec_pattern.sub("", cleaned_markdown).strip()
+        if not (
+            isinstance(spec_obj, dict)
+            and isinstance(spec_obj.get("sheets"), list)
+            and spec_obj["sheets"]
+            and all(isinstance(sheet, dict) for sheet in spec_obj["sheets"])
+        ):
+            artifact_warnings.append(
+                "Spesifikasi Excel harus berupa objek JSON dengan daftar `sheets` yang valid."
+            )
+            continue
+
+        generated_files.append(
+            build_xlsx_from_spec(spec_obj, fallback_prefix=safe_prefix)
+        )
+        cleaned_markdown = cleaned_markdown.replace(match.group(0), "", 1)
+
+    # Model kadang mengeluarkan spesifikasi workbook sebagai ```json, bukan
+    # ```excel-spec. Kompilasikan hanya ketika permintaan memang terkait Excel.
+    json_pattern = re.compile(r"```json\s*([\s\S]*?)```", re.IGNORECASE)
+    if force_excel_if_table:
+        for match in list(json_pattern.finditer(cleaned_markdown)):
+            try:
+                json_obj = json.loads(match.group(1).strip())
+            except json.JSONDecodeError:
+                if re.search(r'"sheets"\s*:', match.group(1), re.IGNORECASE):
+                    artifact_warnings.append(
+                        "JSON workbook tidak valid dan tidak dapat dirakit menjadi file Excel."
+                    )
+                continue
+            if not isinstance(json_obj, dict) or "sheets" not in json_obj:
+                continue
+
+            cleaned_markdown = cleaned_markdown.replace(match.group(0), "", 1)
+            sheets = json_obj.get("sheets")
+            if not (
+                isinstance(sheets, list)
+                and sheets
+                and all(isinstance(sheet, dict) for sheet in sheets)
+            ):
+                artifact_warnings.append(
+                    "JSON workbook ditemukan, tetapi daftar `sheets`-nya tidak valid; "
+                    "file Excel tidak dibuat."
+                )
+                continue
+
+            generated_files.append(
+                build_xlsx_from_spec(json_obj, fallback_prefix=safe_prefix)
+            )
 
     # Fallback tabel Markdown -> Excel (.xlsx)
     if not any(f["kind"] == "xlsx" for f in generated_files) and force_excel_if_table:
         fallback_spec = _extract_markdown_tables_as_spec(cleaned_markdown, prefix=safe_prefix)
         if fallback_spec:
-            try:
-                compiled = build_xlsx_from_spec(fallback_spec, fallback_prefix=safe_prefix)
-                generated_files.append(compiled)
-            except Exception:
-                pass
+            generated_files.append(
+                build_xlsx_from_spec(fallback_spec, fallback_prefix=safe_prefix)
+            )
 
     # 2. Cari blok ```vba ... ``` atau ```vb ... ```
     vba_pattern = re.compile(r"```(?:vba|vb)\s*([\s\S]*?)```", re.IGNORECASE)
@@ -1246,6 +1290,13 @@ def extract_and_compile_artifacts(
                 generated_files.append(pdf_file)
         except Exception:
             pass
+
+    if artifact_warnings:
+        cleaned_markdown = (
+            cleaned_markdown.rstrip()
+            + "\n\n"
+            + "\n".join(f"> **Peringatan artifact:** {warning}" for warning in artifact_warnings)
+        )
 
     # 5. Bundle ZIP jika >= 2 file
     zip_bundle = _build_zip_bundle(generated_files, prefix=safe_prefix)
