@@ -163,6 +163,110 @@ cd sm-vo-ai
 
 ---
 
+## 🌐 Panduan Deploy di VPS (Production)
+
+Jika Anda ingin menjalankan Virtual HQ di VPS (Ubuntu/Debian) agar bisa diakses 24/7 dari browser maupun dihubungkan ke agen eksternal:
+
+1. **Clone & Install Dependensi:**
+   Ikuti Langkah 1–3 di atas pada VPS Anda, lalu build frontend untuk production:
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   ```
+
+2. **Wajib Atur Autentikasi di `backend/.env`:**
+   ```env
+   VHQ_FOUNDER_USERNAME=founder
+   VHQ_FOUNDER_PASSWORD=ganti-password-minimal-10-karakter
+   VHQ_AUTH_SECRET=ganti-secret-acak-minimal-10-karakter
+   # Set true jika sudah memakai HTTPS (Nginx/Caddy/Cloudflare)
+   VHQ_COOKIE_SECURE=true
+   ```
+
+3. **Jalankan Backend & Frontend sebagai Service (`systemd`):**
+   * `/etc/systemd/system/vhq-backend.service`:
+     ```ini
+     [Unit]
+     Description=Solusi Macro VHQ Backend (FastAPI)
+     After=network.target
+
+     [Service]
+     User=root
+     WorkingDirectory=/root/sm-vo-ai/backend
+     ExecStart=/root/sm-vo-ai/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+     Restart=always
+
+     [Install]
+     WantedBy=multi-user.target
+     ```
+   * `/etc/systemd/system/vhq-frontend.service`:
+     ```ini
+     [Unit]
+     Description=Solusi Macro VHQ Frontend (Next.js)
+     After=network.target vhq-backend.service
+
+     [Service]
+     User=root
+     WorkingDirectory=/root/sm-vo-ai/frontend
+     Environment=VHQ_API_URL=http://127.0.0.1:8000
+     ExecStart=/usr/bin/npm run start -- --port 3000
+     Restart=always
+
+     [Install]
+     WantedBy=multi-user.target
+     ```
+   * Aktifkan keduanya:
+     ```bash
+     sudo systemctl daemon-reload
+     sudo systemctl enable --now vhq-backend vhq-frontend
+     ```
+
+4. **Reverse Proxy (Cukup Buka Port `3000`):**
+   Next.js sudah otomatis mem-proxy rute `/api/backend/*` ke `http://127.0.0.1:8000`. Anda cukup mengarahkan domain HTTPS Anda ke port `3000` (tanpa perlu membuka port `8000` ke publik dan bebas masalah CORS). Contoh **Caddy**:
+   ```caddyfile
+   vhq.domainanda.com {
+       reverse_proxy 127.0.0.1:3000
+   }
+   ```
+
+---
+
+## 🤖 Integrasi dengan Hermes Agent (Telegram & VPS)
+
+Jika Anda sudah menjalankan **Hermes Agent** di VPS yang terhubung ke **Telegram**, Anda dapat menggabungkannya dengan Virtual HQ dalam dua skenario:
+
+### Opsi A: Kontrol VHQ dari Telegram via Hermes (Remote Control)
+Karena Hermes dan VHQ berada di VPS yang sama, Hermes dapat memanggil REST API VHQ secara lokal di `http://127.0.0.1:8000` (misalnya melalui tool shell/HTTP atau custom skill Hermes):
+
+1. **Login untuk mendapatkan cookie sesi (`vhq_session`):**
+   ```bash
+   curl -s -c /tmp/vhq_cookies.txt -X POST http://127.0.0.1:8000/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username":"founder","password":"PASSWORD_ANDA"}'
+   ```
+2. **Kirim tugas baru ke agen VHQ (mis. dari instruksi Telegram Anda):**
+   ```bash
+   curl -s -b /tmp/vhq_cookies.txt -X POST http://127.0.0.1:8000/tasks \
+     -H "Content-Type: application/json" \
+     -d '{"title":"Rekap Penjualan Q4","description":"Buat workbook Excel + grafik","priority":"High","assigned_agent_id":2}'
+   ```
+3. **Pantau status/hasil tugas atau chat langsung ke agen:**
+   ```bash
+   # Cek daftar task & hasil
+   curl -s -b /tmp/vhq_cookies.txt http://127.0.0.1:8000/tasks
+
+   # Chat langsung dengan agen
+   curl -s -b /tmp/vhq_cookies.txt -X POST http://127.0.0.1:8000/ai/chat \
+     -H "Content-Type: application/json" \
+     -d '{"message":"Ringkas progres proyek hari ini","session_id":"telegram-hermes"}'
+   ```
+
+### Opsi B: Gunakan Endpoint Hermes sebagai Provider AI di VHQ
+Jika Hermes di VPS Anda mengekspos API **OpenAI-compatible** (`/v1`), buka menu **Pengaturan AI (`/settings`)** di VHQ, tambahkan provider baru bertipe OpenAI-compatible, lalu arahkan **Base URL** ke endpoint lokal Hermes Anda.
+
+---
+
 ## ⚙️ Konfigurasi Provider AI & Routing Agen
 
 Setelah aplikasi terbuka di `http://localhost:3000`:
@@ -220,8 +324,11 @@ solusi-macro-vhq/
 │   ├── components/
 │   │   ├── artifact-cards.tsx    # Kartu unduhan artifact interaktif (.xlsx/.docx/.pdf/.zip)
 │   │   ├── auth-guard.tsx        # Proteksi rute autentikasi
+│   │   ├── branding-runtime.tsx  # Sinkronisasi tema & white-label workspace
+│   │   ├── code-block.tsx        # Blok kode dengan tombol salin & collapse
+│   │   ├── pasted-blocks.tsx     # Kartu lampiran paste kode/teks ala Claude
 │   │   ├── vhq-shell.tsx         # Sidebar, navigasi, dan indikator status AI
-│   │   ├── virtual-office-3d.tsx # Engine 3D Pixar Studio Diorama (Three.js)
+│   │   ├── virtual-office-3d.tsx # Engine 3D Pixar Studio Diorama dinamis (Three.js)
 │   │   └── markdown-deliverable.tsx # Renderer markdown output agen
 │   └── package.json              # Skrip & dependensi npm
 │
