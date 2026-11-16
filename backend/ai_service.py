@@ -744,16 +744,10 @@ def generate_social_content(
     db_session=None,
 ) -> str:
     chosen_model = resolve_ai_model(model, task_type="social_post", db_session=db_session)
-<<<<<<< HEAD
     company_name, _ = _get_workspace_identity(db_session)
     system_prompt = f"""
 Kamu adalah Head of Social Media {company_name}.
-Buat draf konten promosi/edukasi untuk platform yang diminta dalam JSON valid:
-=======
-    system_prompt = """
-Kamu adalah Head of Social Media Strategist.
 Buat draf konten promosi/edukasi untuk platform yang diminta dalam JSON valid TANPA markdown fence atau teks tambahan:
->>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
 {
   "title": "Judul singkat konten",
   "facebook": "Postingan Facebook lengkap dengan hook, isi, dan CTA",
