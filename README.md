@@ -16,7 +16,7 @@ Solusi Macro Virtual HQ (VHQ) adalah platform manajemen kerja kolaboratif berbas
 ### 1. 🎮 3D Modern Dark Executive Virtual Office
 * **Visualisasi Kantor 3D Cozy & Modern Dark Executive**: Ruang kerja bernuansa gelap elegan dengan partisi kaca beraksen neon *cyan*, lampu lantai sudut *warm glow*, pod meja kerja simetris, area executive lounge, sofa kulit gelap, tanaman, dan latar jendela kota malam.
 * **Realistic Humanoid 3D Avatars & Auto-Spawn Meja**: Setiap agen memiliki proporsi manusia realistis lengkap dengan detail wajah, pakaian korporat, kacamata, dan *headset*. Penambahan role baru di `/agents` otomatis memunculkan meja, kursi, dan avatar baru di kantor 3D.
-* **Kocheng Oren Kantor, Celotehan Random & Coffee Break**: Kocheng Oren CMO berjalan keliling kantor (bisa diklik!), bubble celotehan santai agen, serta tombol **☕ Coffee Break** untuk *stretching* bareng.
+* **Kocheng Oren Kantor, Jokes per Role, Stretching & Istirahat Pantry**: Kocheng Oren CMO berjalan keliling kantor (bisa diklik!), bubble celotehan *relate* per masing-masing role, mode **☕ Stretching** (keluar meja dengan 4 gerakan pemanasan), serta toggle **🍱 Istirahat Pantry** (karyawan ngopi di pantry, makan siang, rebahan di sofa, ngobrol, hingga scroll HP).
 * **Compact HUD, Dual Camera & Toggle Label Kepala**: Bar kontrol 1 baris yang ringkas, sudut pandang **2.5D / 3D Orbit**, serta toggle label kepala (**Nama**, **Role**, **Semua**, atau **Hide**).
 
 ### 2. 🤖 Autonomous Multi-Agent Hierarchy

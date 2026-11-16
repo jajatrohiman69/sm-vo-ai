@@ -236,18 +236,150 @@ function getAgentStationConfig(index: number): AgentStationConfig {
   };
 }
 
+const ROLE_QUIPS: { keywords: string[]; quips: string[] }[] = [
+  {
+    keywords: ["ceo", "chief"],
+    quips: [
+      "Meeting terus, eksekusi kapan? Oh iya kan tim yang ngerjain 😎",
+      "Visi kuartal ini: jangan sampai server error pas demo!",
+      "Menunggu approval Founder dengan penuh harap 🙏",
+      "Lagi mantau KPI sambil diawasi Kocheng Oren 🐈",
+    ],
+  },
+  {
+    keywords: ["excel", "macro"],
+    quips: [
+      "Rumus VLOOKUP-ku kok #REF! padahal udah doa 😭",
+      "Kurung tutup kurang 1 aja bikin overthinking seharian...",
+      "Macro jalan mulus tanpa Not Responding = surga dunia ✨",
+      "Jangan sentuh sheet Data_Mentah, nanti berantakan semua!",
+    ],
+  },
+  {
+    keywords: ["business", "bisnis"],
+    quips: [
+      "Klien minta 'simpel aja', tapi revisinya 14 halaman 📄",
+      "Lagi menerjemahkan maunya klien ke bahasa manusia...",
+      "SWOT hari ini: Strength kopi, Weakness ngantuk ☕",
+      "Requirement berubah lagi? Tenang, tarik napas dulu...",
+    ],
+  },
+  {
+    keywords: ["dashboard", "bi", "data"],
+    quips: [
+      "Pie chart kok potongannya kayak martabak manis 🍕",
+      "Warna grafik udah estetik, tinggal nunggu angkanya naik 📈",
+      "Lagi nyari selisih Rp 1 perak di laporan bulanan 🔍",
+      "Kalau angka turun, kita zoom out aja grafiknya biar kalem",
+    ],
+  },
+  {
+    keywords: ["automation", "otomasi"],
+    quips: [
+      "Malas kerja manual 5 menit? Bikin skrip otomasi 5 jam! ⚙️",
+      "Di laptopku jalan kok, nggak tahu kalau di server...",
+      "Cron job jalan jam 2 pagi, tidur sambil berdoa 🛌",
+      "Error 502? Coba matiin nyalain lagi aja dulu 🔌",
+    ],
+  },
+  {
+    keywords: ["secretary", "pmo", "admin"],
+    quips: [
+      "File Final_Revisi_V3_FixBanget.xlsx siap dikirim! 📋",
+      "Kalender penuh meeting, tapi jam makan siang tetap sakral 🍱",
+      "Yang belum update status task, aku pantau dari sini 👀",
+      "Notulensi udah rapi, semoga nggak ada revisi dadakan!",
+    ],
+  },
+  {
+    keywords: ["qa", "quality", "doc"],
+    quips: [
+      "Nemu bug baru? Alhamdulillah, kerjaan aman hari ini 🐛",
+      "User: 'Nggak mungkin diklik gitu'. Aku: *klik aneh-aneh* 💥",
+      "SOP udah ditulis lengkap, semoga ada yang baca ya...",
+      "Test lolos semua? Curiga, pasti ada yang kelewat 🤔",
+    ],
+  },
+  {
+    keywords: ["social", "media", "marketing", "content"],
+    quips: [
+      "Bikin hook 3 detik, mikirnya 3 jam 💀",
+      "FYP itu misteri Ilahi, yang penting konsisten posting 📱",
+      "Lagi mantau algoritma Threads sambil ngemil gorengan 🍌",
+      "Revisi klien: 'Dibikin lebih viral dikit ya kak' 😭",
+    ],
+  },
+];
+
 const FUNNY_QUIPS = [
   "Lagi pura-pura mikir keras biar nggak dikasih revisi 🤫",
   "Kopi ke-3 hari ini, jantung mulai nge-rap ☕",
-  "Rumus VLOOKUP-ku kok #REF! padahal udah doa 😭",
-  "Menunggu approval Founder dengan penuh harap 🙏",
   "Kalau laptop hang, itu bukan bug tapi coffee break",
-  "Mode fokus: jangan ganggu (padahal lagi scroll Threads)",
   "Otak lagi buffering 99%... 🔄",
   "Siap lembur asal ada gorengan 🍌",
-  "Macro jalan mulus = tidur nyenyak malam ini ✨",
   "Eh barusan Kocheng Oren lewat ngintip layar 🐈",
 ];
+
+type PantryActivityKind = "ngopi" | "makan" | "rebahan" | "ngobrol" | "scroll_hp" | "snack";
+
+function getPantryActivity(index: number): {
+  pos: [number, number];
+  facing: number;
+  kind: PantryActivityKind;
+  label: string;
+} {
+  const presets: {
+    pos: [number, number];
+    facing: number;
+    kind: PantryActivityKind;
+    label: string;
+  }[] = [
+    { pos: [2.15, -1.65], facing: 0.15, kind: "rebahan", label: "🛋️ Rebahan santai di sofa" },
+    { pos: [-0.85, -3.05], facing: Math.PI, kind: "ngopi", label: "☕ Seduh & ngopi di pantry" },
+    { pos: [0.55, -1.15], facing: Math.PI / 2, kind: "ngobrol", label: "🗣️ Ngobrol santai bareng tim" },
+    { pos: [1.35, -1.15], facing: -Math.PI / 2, kind: "ngobrol", label: "🗣️ Ghibah KPI sambil ketawa" },
+    { pos: [1.3, 0.58], facing: Math.PI, kind: "makan", label: "🍱 Makan siang di meja lounge" },
+    { pos: [-0.15, -3.05], facing: Math.PI, kind: "snack", label: "🍪 Ambil camilan di pantry" },
+    { pos: [-0.25, -2.25], facing: 0.4, kind: "scroll_hp", label: "📱 Scroll HP sambil santai" },
+    { pos: [2.35, 0.2], facing: -0.9, kind: "ngopi", label: "☕ Ngopi sore di area lounge" },
+  ];
+  if (index < presets.length) return presets[index];
+  const extra = index - presets.length;
+  const kinds: PantryActivityKind[] = ["ngopi", "makan", "ngobrol", "scroll_hp", "snack"];
+  const k = kinds[extra % kinds.length];
+  return {
+    pos: [-1.4 + (extra % 4) * 1.1, -0.5 + Math.floor(extra / 4) * 0.9],
+    facing: (extra % 2 === 0 ? 1 : -1) * 0.6,
+    kind: k,
+    label: k === "makan" ? "🍱 Makan siang santai" : k === "ngopi" ? "☕ Ngopi dulu" : "🗣️ Santai di lounge",
+  };
+}
+
+function getBreakSpot(index: number): [number, number] {
+  const spots: [number, number][] = [
+    [2.5, -0.4],
+    [-2.4, 1.4],
+    [2.7, 0.7],
+    [-0.5, 1.3],
+    [-2.4, -0.2],
+    [1.1, 1.2],
+    [0.3, 1.8],
+    [-1.8, -1.6],
+  ];
+  if (index < spots.length) return spots[index];
+  const extra = index - spots.length;
+  return [-1.8 + (extra % 4) * 1.3, 0.5 + Math.floor(extra / 4) * 1.1];
+}
+
+function getRoleRelatableQuip(agent: OfficeAgent): string {
+  const profile = `${agent.name} ${agent.role} ${agent.department}`.toLowerCase();
+  for (const group of ROLE_QUIPS) {
+    if (group.keywords.some((kw) => profile.includes(kw))) {
+      return group.quips[Math.floor(Math.random() * group.quips.length)];
+    }
+  }
+  return FUNNY_QUIPS[Math.floor(Math.random() * FUNNY_QUIPS.length)];
+}
 
 const CAT_QUOTES = [
   "🐈 Meong! Kocheng CMO lagi audit stok ikan & snack kantor!",
@@ -547,6 +679,8 @@ export default function VirtualOffice3D({
     agentId: number;
     text: string;
   } | null>(null);
+  const [pantryBreak, setPantryBreak] = useState(false);
+  const pantryBreakRef = useRef(false);
   const coffeeBreakUntilRef = useRef(0);
   const showToastRef = useRef<(msg: string, ms?: number) => void>(() => {});
 
@@ -596,6 +730,9 @@ export default function VirtualOffice3D({
   useEffect(() => {
     roleModeRef.current = roleMode;
   }, [roleMode]);
+  useEffect(() => {
+    pantryBreakRef.current = pantryBreak;
+  }, [pantryBreak]);
   useEffect(() => {
     cameraDimRef.current = cameraDim;
   }, [cameraDim]);
@@ -2323,23 +2460,203 @@ export default function VirtualOffice3D({
             rig.patrolIdx = (rig.patrolIdx + 1) % st.patrolPoints.length;
           }
         } else {
-          const amp = rig.busy ? 0.07 : 0.012;
-          const spd = rig.busy ? 9 : 1.6;
-          rig.leftArm.rotation.x = -0.9 + Math.sin(elapsed * spd + i) * amp;
-          rig.rightArm.rotation.x = -0.9 + Math.cos(elapsed * spd + i) * amp;
-          rig.leftElbow.rotation.x = -1.0;
-          rig.rightElbow.rotation.x = -1.0;
-          const lookDown = rig.busy ? 0.16 : 0;
-          const isCoffeeBreak = performance.now() < coffeeBreakUntilRef.current;
-          rig.head.rotation.x += (lookDown - rig.head.rotation.x) * k * 0.5;
-          rig.head.rotation.y = isCoffeeBreak
-            ? Math.sin(elapsed * 5 + i) * 0.35
-            : rig.busy
+          const isPantryBreak = pantryBreakRef.current;
+          const isCoffeeBreak = !isPantryBreak && performance.now() < coffeeBreakUntilRef.current;
+          const pantryAct = getPantryActivity(i);
+          const [homeX, , homeZ] = st.seatPos;
+          const [breakX, breakZ] = isPantryBreak ? pantryAct.pos : getBreakSpot(i);
+          const targetX = isPantryBreak || isCoffeeBreak ? breakX : homeX;
+          const targetZ = isPantryBreak || isCoffeeBreak ? breakZ : homeZ;
+          const dx = targetX - rig.group.position.x;
+          const dz = targetZ - rig.group.position.z;
+          const dist = Math.hypot(dx, dz);
+
+          if (dist > 0.06) {
+            // Berjalan keluar ke pantry/lounge atau kembali ke kursi masing-masing
+            const step = Math.min(dist, 1.45 * dt);
+            rig.group.position.x += (dx / dist) * step;
+            rig.group.position.z += (dz / dist) * step;
+            rig.group.rotation.y = angleLerp(
+              rig.group.rotation.y,
+              Math.atan2(dx, dz),
+              Math.min(1, dt * 7),
+            );
+            rig.phase += dt * 5.2;
+            const sw = Math.sin(rig.phase);
+            rig.leftLeg.rotation.x = sw * 0.48;
+            rig.rightLeg.rotation.x = -sw * 0.48;
+            rig.leftKnee.rotation.x = Math.max(0, -sw) * 0.55;
+            rig.rightKnee.rotation.x = Math.max(0, sw) * 0.55;
+            rig.leftArm.rotation.x = -sw * 0.42;
+            rig.rightArm.rotation.x = sw * 0.42;
+            rig.leftArm.rotation.z = 0;
+            rig.rightArm.rotation.z = 0;
+            rig.leftElbow.rotation.x = -0.25;
+            rig.rightElbow.rotation.x = -0.25;
+            rig.body.rotation.x = 0;
+            rig.body.rotation.y = 0;
+            rig.body.position.y = (rig.seated ? 0.34 : 0) + Math.abs(Math.cos(rig.phase)) * 0.02;
+          } else if (isPantryBreak) {
+            // Aktivitas realistis di pantry & lounge
+            rig.group.position.x = breakX;
+            rig.group.position.z = breakZ;
+            rig.group.rotation.y = angleLerp(rig.group.rotation.y, pantryAct.facing, Math.min(1, dt * 6));
+
+            if (pantryAct.kind === "rebahan") {
+              // Rebahan santai di sofa eksekutif
+              rig.body.position.y += (0.04 - rig.body.position.y) * k;
+              rig.body.rotation.x += (-0.42 - rig.body.rotation.x) * k;
+              rig.body.rotation.y += (0 - rig.body.rotation.y) * k;
+              rig.leftLeg.rotation.x += (-1.25 - rig.leftLeg.rotation.x) * k;
+              rig.rightLeg.rotation.x += (-1.25 - rig.rightLeg.rotation.x) * k;
+              rig.leftKnee.rotation.x += (0.35 - rig.leftKnee.rotation.x) * k;
+              rig.rightKnee.rotation.x += (0.35 - rig.rightKnee.rotation.x) * k;
+              rig.leftArm.rotation.x = -0.35;
+              rig.leftArm.rotation.z = -0.25;
+              rig.rightArm.rotation.x = -0.8;
+              rig.rightElbow.rotation.x = -1.4;
+              rig.head.rotation.x = 0.2;
+              rig.head.rotation.y = Math.sin(elapsed * 0.7) * 0.15;
+            } else if (pantryAct.kind === "ngopi" || pantryAct.kind === "makan" || pantryAct.kind === "snack") {
+              // Berdiri di pantry/meja sambil minum kopi atau makan
+              rig.body.position.y += ((rig.seated ? 0.34 : 0) - rig.body.position.y) * k;
+              rig.body.rotation.x += (0 - rig.body.rotation.x) * k;
+              rig.body.rotation.y += (0 - rig.body.rotation.y) * k;
+              rig.leftLeg.rotation.x += (0 - rig.leftLeg.rotation.x) * k;
+              rig.rightLeg.rotation.x += (0 - rig.rightLeg.rotation.x) * k;
+              rig.leftKnee.rotation.x += (0 - rig.leftKnee.rotation.x) * k;
+              rig.rightKnee.rotation.x += (0 - rig.rightKnee.rotation.x) * k;
+              const sip = 0.5 + 0.5 * Math.sin(elapsed * 2.1 + i);
+              rig.rightArm.rotation.x = -0.65 - sip * 0.65;
+              rig.rightElbow.rotation.x = -0.9 - sip * 0.6;
+              rig.leftArm.rotation.x = pantryAct.kind === "makan" ? -0.85 : -0.2;
+              rig.leftElbow.rotation.x = pantryAct.kind === "makan" ? -1.1 : -0.3;
+              rig.head.rotation.x = sip * 0.12;
+              rig.head.rotation.y = Math.sin(elapsed * 1.1 + i) * 0.18;
+            } else if (pantryAct.kind === "ngobrol") {
+              // Ngobrol santai dengan gestur tangan & anggukan kepala
+              rig.body.position.y += ((rig.seated ? 0.34 : 0) - rig.body.position.y) * k;
+              rig.body.rotation.x += (0 - rig.body.rotation.x) * k;
+              rig.body.rotation.y += (Math.sin(elapsed * 1.3 + i) * 0.12 - rig.body.rotation.y) * k;
+              rig.leftLeg.rotation.x += (0 - rig.leftLeg.rotation.x) * k;
+              rig.rightLeg.rotation.x += (0 - rig.rightLeg.rotation.x) * k;
+              rig.leftKnee.rotation.x += (0 - rig.leftKnee.rotation.x) * k;
+              rig.rightKnee.rotation.x += (0 - rig.rightKnee.rotation.x) * k;
+              const talk = Math.sin(elapsed * 4.0 + i);
+              rig.leftArm.rotation.x = -0.55 + talk * 0.25;
+              rig.rightArm.rotation.x = -0.65 - talk * 0.3;
+              rig.leftElbow.rotation.x = -0.85 + talk * 0.25;
+              rig.rightElbow.rotation.x = -0.95 - talk * 0.25;
+              rig.head.rotation.x = Math.sin(elapsed * 3.5 + i) * 0.12;
+              rig.head.rotation.y = Math.sin(elapsed * 1.5 + i) * 0.15;
+            } else {
+              // Scroll HP santai
+              rig.body.position.y += ((rig.seated ? 0.34 : 0) - rig.body.position.y) * k;
+              rig.body.rotation.x += (0 - rig.body.rotation.x) * k;
+              rig.leftLeg.rotation.x += (0 - rig.leftLeg.rotation.x) * k;
+              rig.rightLeg.rotation.x += (0 - rig.rightLeg.rotation.x) * k;
+              rig.leftKnee.rotation.x += (0 - rig.leftKnee.rotation.x) * k;
+              rig.rightKnee.rotation.x += (0 - rig.rightKnee.rotation.x) * k;
+              rig.leftArm.rotation.x = -0.75;
+              rig.rightArm.rotation.x = -0.75;
+              rig.leftElbow.rotation.x = -1.15;
+              rig.rightElbow.rotation.x = -1.15;
+              rig.head.rotation.x = 0.28 + Math.sin(elapsed * 2 + i) * 0.05;
+              rig.head.rotation.y = 0;
+            }
+          } else if (isCoffeeBreak) {
+            // Sudah sampai di spot break: berdiri & lakukan gerakan pemanasan berbeda per karakter
+            rig.group.position.x = breakX;
+            rig.group.position.z = breakZ;
+            const centerYaw = Math.atan2(0.8 - breakX, 0.2 - breakZ);
+            rig.group.rotation.y = angleLerp(rig.group.rotation.y, centerYaw, Math.min(1, dt * 5));
+            rig.leftLeg.rotation.x += (0 - rig.leftLeg.rotation.x) * k;
+            rig.rightLeg.rotation.x += (0 - rig.rightLeg.rotation.x) * k;
+            rig.leftKnee.rotation.x += (0 - rig.leftKnee.rotation.x) * k;
+            rig.rightKnee.rotation.x += (0 - rig.rightKnee.rotation.x) * k;
+
+            const stretchStyle = i % 4;
+            if (stretchStyle === 0) {
+              // Overhead arm stretch
+              const lift = 0.5 + 0.5 * Math.sin(elapsed * 2.4 + i);
+              rig.leftArm.rotation.x = -2.6 * lift - 0.2;
+              rig.rightArm.rotation.x = -2.6 * lift - 0.2;
+              rig.leftArm.rotation.z = -0.18;
+              rig.rightArm.rotation.z = 0.18;
+              rig.leftElbow.rotation.x = -0.2;
+              rig.rightElbow.rotation.x = -0.2;
+              rig.head.rotation.x = -0.15 * lift;
+              rig.head.rotation.y = 0;
+              rig.body.rotation.y = 0;
+              rig.body.position.y = (rig.seated ? 0.34 : 0) + lift * 0.025;
+            } else if (stretchStyle === 1) {
+              // Torso twist kiri-kanan
+              const tw = Math.sin(elapsed * 2.8 + i);
+              rig.body.rotation.y = tw * 0.45;
+              rig.leftArm.rotation.x = -0.7;
+              rig.rightArm.rotation.x = -0.7;
+              rig.leftArm.rotation.z = -0.35;
+              rig.rightArm.rotation.z = 0.35;
+              rig.leftElbow.rotation.x = -1.1;
+              rig.rightElbow.rotation.x = -1.1;
+              rig.head.rotation.y = tw * 0.2;
+              rig.head.rotation.x = 0;
+              rig.body.position.y = rig.seated ? 0.34 : 0;
+            } else if (stretchStyle === 2) {
+              // Shoulder roll & neck stretch
+              const sr = Math.sin(elapsed * 3.2 + i);
+              rig.body.rotation.y = 0;
+              rig.leftArm.rotation.x = -0.25 + sr * 0.25;
+              rig.rightArm.rotation.x = -0.25 - sr * 0.25;
+              rig.leftArm.rotation.z = -0.22;
+              rig.rightArm.rotation.z = 0.22;
+              rig.leftElbow.rotation.x = -0.4;
+              rig.rightElbow.rotation.x = -0.4;
+              rig.head.rotation.z = Math.sin(elapsed * 2.0 + i) * 0.22;
+              rig.head.rotation.y = Math.cos(elapsed * 1.6 + i) * 0.25;
+              rig.body.position.y = (rig.seated ? 0.34 : 0) + Math.abs(sr) * 0.015;
+            } else {
+              // Alternating side reach
+              const alt = Math.sin(elapsed * 2.5 + i);
+              rig.body.rotation.y = 0;
+              rig.leftArm.rotation.x = alt > 0 ? -2.4 * alt : -0.15;
+              rig.rightArm.rotation.x = alt < 0 ? 2.4 * alt : -0.15;
+              rig.leftArm.rotation.z = alt > 0 ? -0.35 : -0.1;
+              rig.rightArm.rotation.z = alt < 0 ? 0.35 : 0.1;
+              rig.leftElbow.rotation.x = -0.25;
+              rig.rightElbow.rotation.x = -0.25;
+              rig.head.rotation.y = alt * 0.25;
+              rig.body.position.y = rig.seated ? 0.34 : 0;
+            }
+          } else {
+            // Mode kerja normal di meja/sofa
+            rig.group.position.x = homeX;
+            rig.group.position.z = homeZ;
+            rig.group.rotation.y = angleLerp(rig.group.rotation.y, st.facingY, Math.min(1, dt * 6));
+            rig.body.rotation.x += (0 - rig.body.rotation.x) * k;
+            rig.body.rotation.y += (0 - rig.body.rotation.y) * k;
+            rig.head.rotation.z += (0 - rig.head.rotation.z) * k;
+            rig.leftArm.rotation.z += (0 - rig.leftArm.rotation.z) * k;
+            rig.rightArm.rotation.z += (0 - rig.rightArm.rotation.z) * k;
+            if (rig.seated) {
+              rig.leftLeg.rotation.x += (-Math.PI / 2 - rig.leftLeg.rotation.x) * k;
+              rig.rightLeg.rotation.x += (-Math.PI / 2 - rig.rightLeg.rotation.x) * k;
+              rig.leftKnee.rotation.x += (Math.PI / 2 - rig.leftKnee.rotation.x) * k;
+              rig.rightKnee.rotation.x += (Math.PI / 2 - rig.rightKnee.rotation.x) * k;
+            }
+            const amp = rig.busy ? 0.07 : 0.012;
+            const spd = rig.busy ? 9 : 1.6;
+            rig.leftArm.rotation.x = -0.9 + Math.sin(elapsed * spd + i) * amp;
+            rig.rightArm.rotation.x = -0.9 + Math.cos(elapsed * spd + i) * amp;
+            rig.leftElbow.rotation.x = -1.0;
+            rig.rightElbow.rotation.x = -1.0;
+            const lookDown = rig.busy ? 0.16 : 0;
+            rig.head.rotation.x += (lookDown - rig.head.rotation.x) * k * 0.5;
+            rig.head.rotation.y = rig.busy
               ? Math.sin(elapsed * 0.7 + i) * 0.05
               : Math.sin(elapsed * 0.6 + i * 2) * 0.25;
-          rig.body.position.y = isCoffeeBreak
-            ? Math.abs(Math.sin(elapsed * 6 + i)) * 0.04
-            : Math.sin(elapsed * 1.4 + i) * 0.004;
+            rig.body.position.y += (Math.sin(elapsed * 1.4 + i) * 0.004 - rig.body.position.y) * k;
+          }
         }
         if (rig.orb.visible) {
           rig.orb.position.y =
@@ -2600,17 +2917,18 @@ export default function VirtualOffice3D({
     const id = setInterval(() => {
       if (agents.length === 0) return;
       const picked = agents[Math.floor(Math.random() * agents.length)];
-      const quip = FUNNY_QUIPS[Math.floor(Math.random() * FUNNY_QUIPS.length)];
+      const quip = getRoleRelatableQuip(picked);
       setRandomQuip({ agentId: picked.id, text: quip });
     }, 9000);
     return () => clearInterval(id);
   }, [agents]);
 
   const triggerCoffeeBreak = useCallback(() => {
-    coffeeBreakUntilRef.current = performance.now() + 5500;
+    setPantryBreak(false);
+    coffeeBreakUntilRef.current = performance.now() + 12000;
     showToast(
-      "☕ COFFEE BREAK! Semua agen serempak stretching sambil nunggu gorengan & ngopi bareng!",
-      4800,
+      "☕ COFFEE BREAK! Tim berdiri keluar dari meja untuk stretching & pemanasan 12 detik!",
+      5000,
     );
     if (agents.length > 0) {
       const picked = agents[Math.floor(Math.random() * agents.length)];
@@ -2620,6 +2938,22 @@ export default function VirtualOffice3D({
       });
     }
   }, [agents, showToast]);
+
+  const togglePantryBreak = useCallback(() => {
+    setPantryBreak((prev) => {
+      const next = !prev;
+      if (next) {
+        coffeeBreakUntilRef.current = 0;
+        showToast(
+          "🍱 ISTIRAHAT PANTRY! Karyawan bebas makan, ngopi, rebahan di sofa, dan ngobrol!",
+          5000,
+        );
+      } else {
+        showToast("💻 Jam istirahat selesai! Semua karyawan kembali ke meja kerja.", 3500);
+      }
+      return next;
+    });
+  }, [showToast]);
 
   async function handleAssignTaskSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -2842,7 +3176,11 @@ export default function VirtualOffice3D({
               className="absolute left-0 top-0 z-10 flex flex-col items-center gap-1 will-change-transform"
               style={{ visibility: "hidden" }}
             >
-              {busyTitle ? (
+              {pantryBreak ? (
+                <div className="max-w-[185px] truncate rounded-xl border border-emerald-400/35 bg-[#0f1f1a]/95 px-2.5 py-1 text-[10px] text-emerald-200 shadow-lg backdrop-blur">
+                  {getPantryActivity(i).label}
+                </div>
+              ) : busyTitle ? (
                 <div className="max-w-[160px] truncate rounded-lg border border-amber-300/30 bg-[#2a2118]/90 px-2 py-0.5 text-[10px] text-amber-100 shadow">
                   {busyTitle}
                 </div>
@@ -2932,11 +3270,23 @@ export default function VirtualOffice3D({
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
+              onClick={togglePantryBreak}
+              title="Istirahat di Pantry (makan, ngopi, rebahan, ngobrol)"
+              className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold transition whitespace-nowrap ${
+                pantryBreak
+                  ? "border-emerald-400/50 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30"
+                  : "border-sky-400/25 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20"
+              }`}
+            >
+              {pantryBreak ? "💻 Kembali Kerja" : "🍱 Istirahat Pantry"}
+            </button>
+            <button
+              type="button"
               onClick={triggerCoffeeBreak}
               title="Mode Coffee Break & Stretching Bareng"
               className="inline-flex items-center gap-1 rounded-xl border border-amber-400/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200 transition hover:bg-amber-500/20 whitespace-nowrap"
             >
-              ☕ Coffee Break
+              ☕ Stretching
             </button>
             <button
               type="button"
