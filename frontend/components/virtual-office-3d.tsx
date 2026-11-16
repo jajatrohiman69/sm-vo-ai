@@ -657,7 +657,9 @@ export default function VirtualOffice3D({
   const taskFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [chatInput, setChatInput] = useState("");
-  const [chatReply, setChatReply] = useState("");
+  const [chatThreads, setChatThreads] = useState<
+    Record<number, { id: string; role: "user" | "assistant"; text: string }[]>
+  >({});
   const [chatModelUsed, setChatModelUsed] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatAttachments, setChatAttachments] = useState<UploadedAttachment[]>(
@@ -3050,22 +3052,30 @@ export default function VirtualOffice3D({
     }
   }
 
-  async function handleAskProgressSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function sendProgressChat(customPrompt?: string) {
     if (!selectedAgent) return;
+    const targetId = selectedAgent.id;
     const question =
-      chatInput.trim() ||
-      `Halo ${selectedAgent.name}, bagaimana progres pekerjaanmu saat ini di proyek ${activeProject?.name || "Solusi Macro"}?`;
+      (customPrompt ?? chatInput).trim() ||
+      `Halo ${selectedAgent.name}, bagaimana progres pekerjaanmu saat ini di proyek ${activeProject?.name || branding.office_name || "Virtual HQ"}?`;
+    const userMsgId = `u-${Date.now()}`;
+    setChatThreads((prev) => ({
+      ...prev,
+      [targetId]: [
+        ...(prev[targetId] || []),
+        { id: userMsgId, role: "user", text: question },
+      ],
+    }));
+    if (!customPrompt) setChatInput("");
     setChatLoading(true);
-    setChatReply("");
     try {
       const res = await fetch(`${API_URL}/ai/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: question,
-          session_id: `office-agent-${selectedAgent.id}`,
-          agent_id: selectedAgent.id,
+          session_id: `office-agent-${targetId}`,
+          agent_id: targetId,
           project_id: activeProject?.id ?? null,
           model: "auto",
           attachment_ids: chatAttachments.map((item) => item.file_id),
@@ -3073,17 +3083,39 @@ export default function VirtualOffice3D({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.detail || "Gagal menghubungi agen.");
-      setChatReply(data.message || "Siap, sedang saya kerjakan.");
+      setChatThreads((prev) => ({
+        ...prev,
+        [targetId]: [
+          ...(prev[targetId] || []),
+          {
+            id: `a-${Date.now()}`,
+            role: "assistant",
+            text: data.message || "Siap, sedang saya kerjakan.",
+          },
+        ],
+      }));
       setChatModelUsed(data.model_used || "");
-      setChatInput("");
       setChatAttachments([]);
     } catch (err) {
-      setChatReply(
-        err instanceof Error ? err.message : "Gagal menghubungi agen.",
-      );
+      setChatThreads((prev) => ({
+        ...prev,
+        [targetId]: [
+          ...(prev[targetId] || []),
+          {
+            id: `e-${Date.now()}`,
+            role: "assistant",
+            text: err instanceof Error ? err.message : "Gagal menghubungi agen.",
+          },
+        ],
+      }));
     } finally {
       setChatLoading(false);
     }
+  }
+
+  async function handleAskProgressSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await sendProgressChat();
   }
 
   async function handleCreateProjectSubmit(e: React.FormEvent) {
@@ -3371,7 +3403,6 @@ export default function VirtualOffice3D({
               {
                 label: "Tanya progres",
                 act: () => {
-                  setChatReply("");
                   setActiveActionModal("chat");
                 },
               },
@@ -3625,22 +3656,83 @@ export default function VirtualOffice3D({
             </>
           }
         >
-          <div className="my-4 flex-1 space-y-3 overflow-y-auto rounded-xl border border-white/10 bg-[#100d1a] p-4 text-sm text-slate-200">
-            {chatLoading ? (
-              <p className="animate-pulse text-slate-400">
-                {getShortFirstName(selectedAgent, selectedAgentIndex)} sedang
-                menyiapkan laporan progres...
-              </p>
-            ) : chatReply ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {chatReply}
-              </ReactMarkdown>
-            ) : (
-              <p className="text-xs text-slate-400">
-                Ketik pertanyaan, atau kirim kosong untuk cek status pekerjaan{" "}
-                {getShortFirstName(selectedAgent, selectedAgentIndex)}.
-              </p>
-            )}
+          <div className="my-3 flex-1 min-h-[220px] max-h-[46vh] space-y-3 overflow-y-auto px-1 py-2 text-sm text-slate-200">
+            {(() => {
+              const msgs = chatThreads[selectedAgent.id] || [];
+              const shortName = getShortFirstName(selectedAgent, selectedAgentIndex);
+              if (msgs.length === 0 && !chatLoading) {
+                return (
+                  <div className="flex h-full min-h-[190px] flex-col items-center justify-center text-center px-4">
+                    <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-400/25 bg-violet-500/10 text-xl">
+                      💬
+                    </div>
+                    <p className="text-sm font-semibold text-white">
+                      Ngobrol langsung dengan {shortName}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Tanyakan progres, kendala, atau minta revisi cepat di bawah.
+                    </p>
+                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void sendProgressChat(
+                            `Halo ${selectedAgent.name}, bagaimana progres pekerjaanmu saat ini?`,
+                          )
+                        }
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 transition"
+                      >
+                        📊 Cek progres saat ini
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void sendProgressChat(
+                            `Ada kendala atau hal yang butuh keputusan Founder sekarang?`,
+                          )
+                        }
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 transition"
+                      >
+                        ⚡ Cek kendala
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <>
+                  {msgs.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[85%] px-3.5 py-2.5 text-xs leading-relaxed shadow ${
+                          m.role === "user"
+                            ? "rounded-2xl rounded-br-sm bg-violet-600/90 text-white"
+                            : "rounded-2xl rounded-bl-sm border border-white/10 bg-[#141926] text-slate-200"
+                        }`}
+                      >
+                        {m.role === "assistant" ? (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {m.text}
+                          </ReactMarkdown>
+                        ) : (
+                          <p className="whitespace-pre-wrap">{m.text}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div className="flex justify-start">
+                      <div className="rounded-2xl rounded-bl-sm border border-white/10 bg-[#141926] px-3.5 py-2 text-xs text-slate-400 animate-pulse">
+                        {shortName} sedang mengetik...
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {chatAttachments.length > 0 && (
@@ -3687,7 +3779,7 @@ export default function VirtualOffice3D({
 
           <form
             onSubmit={handleAskProgressSubmit}
-            className="flex gap-2 items-center"
+            className="flex items-center gap-1.5 rounded-2xl border border-white/15 bg-[#090d16] p-1.5 focus-within:border-violet-400/60"
           >
             <button
               type="button"
@@ -3697,23 +3789,24 @@ export default function VirtualOffice3D({
               disabled={
                 chatLoading || uploadingChatFiles || chatAttachments.length >= 5
               }
-              className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-stone-200 transition disabled:opacity-40"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm text-slate-300 hover:bg-white/10 transition disabled:opacity-40"
             >
-              {uploadingChatFiles ? "..." : "📎"}
+              {uploadingChatFiles ? "…" : "📎"}
             </button>
             <input
               type="text"
+              autoFocus
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder={`Tanya ${getShortFirstName(selectedAgent, selectedAgentIndex)} (kosongkan untuk cek progres otomatis)...`}
-              className={`${INPUT} flex-1 text-xs`}
+              placeholder={`Ketik pesan untuk ${getShortFirstName(selectedAgent, selectedAgentIndex)}...`}
+              className="flex-1 bg-transparent px-2 py-1.5 text-xs text-white placeholder:text-slate-500 outline-none"
             />
             <button
               type="submit"
               disabled={chatLoading || uploadingChatFiles}
-              className={BTN_PRIMARY}
+              className="shrink-0 rounded-xl bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-violet-500 transition disabled:opacity-50"
             >
-              {chatLoading ? "..." : "Tanya Sekarang"}
+              {chatLoading ? "..." : "Kirim ↑"}
             </button>
           </form>
         </Modal>
