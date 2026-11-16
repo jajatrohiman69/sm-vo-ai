@@ -13,11 +13,19 @@ Solusi Macro Virtual HQ (VHQ) adalah platform manajemen kerja kolaboratif berbas
 
 ## 🌟 Fitur Utama (Key Features)
 
+<<<<<<< HEAD
 ### 1. 🎮 3D Pixar-Style Virtual Office Diorama
 * **Visualisasi Kantor 3D Interaktif**: Ruang kerja isometrik hangat bergaya modern cozy ala Gen Z, lengkap dengan pod workstation kayu, lampu meja, huddle corner dengan pouf pastel, neon sign, tanaman monstera, area sofa lounge, rak kopi, dan latar jendela gedung pencakar langit.
 * **Dynamic Desk & Humanoid 3D Avatars**: Jumlah meja kerja, baris pod, pencahayaan, dan ukuran ruangan otomatis menyesuaikan jumlah agen di database (mendukung 8, 10, atau lebih agen aktif), lengkap dengan animasi napas (*breathing*), mengetik (*typing*), dan orb status aktif/idle.
 * **Founder / CEO Click-to-Walk**: Karakter Founder (CEO) dapat digerakkan secara interaktif ke setiap stasiun meja agen untuk berdiskusi atau memberikan tugas langsung.
 * **Dual Camera Mode**: Beralih fleksibel antara sudut pandang **2.5D Isometric Diorama** (tampilan estetik terarah) dan **3D Orbit 360°** (bisa diputar, di-zoom, dan di-pan bebas).
+=======
+### 1. 🎮 3D Modern Dark Executive Virtual Office
+* **Visualisasi Kantor 3D Cozy & Modern Dark Executive**: Ruang kerja bernuansa gelap elegan dengan partisi kaca beraksen neon *cyan*, lampu lantai sudut *warm glow*, pod meja kerja simetris, area executive lounge, sofa kulit gelap, tanaman, dan latar jendela kota malam.
+* **Realistic Humanoid 3D Avatars & Auto-Spawn Meja**: Setiap agen memiliki proporsi manusia realistis lengkap dengan detail wajah, pakaian korporat, kacamata, dan *headset*. Penambahan role baru di `/agents` otomatis memunculkan meja, kursi, dan avatar baru di kantor 3D.
+* **Kocheng Oren Kantor, Celotehan Random & Coffee Break**: Kocheng Oren CMO berjalan keliling kantor (bisa diklik!), bubble celotehan santai agen, serta tombol **☕ Coffee Break** untuk *stretching* bareng.
+* **Compact HUD, Dual Camera & Toggle Label Kepala**: Bar kontrol 1 baris yang ringkas, sudut pandang **2.5D / 3D Orbit**, serta toggle label kepala (**Nama**, **Role**, **Semua**, atau **Hide**).
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
 
 ### 2. 🤖 Autonomous Multi-Agent Hierarchy
 * **Raka (AI CEO)**: Memimpin Virtual HQ, menerima arahan strategis Founder, memecah proyek menjadi sub-tugas, dan mendelegasikannya.

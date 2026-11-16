@@ -89,6 +89,7 @@ type AgentStationConfig = {
   optimalModel: string;
 };
 
+<<<<<<< HEAD
 /* ------------------------------------------------------------------ */
 /* Layout kantor dinamis: jumlah meja & karakter mengikuti jumlah agen   */
 /* ------------------------------------------------------------------ */
@@ -184,6 +185,17 @@ const AGENT_PRESETS: AgentPreset[] = [
     look: { hair: "bob", glasses: true },
     optimalModel: "claude-sonnet-5",
   },
+=======
+/* Posisi meja: ditata simetris menjadi 2 pod kerja modern + zona eksekutif */
+const DESKS = [
+  { x: -4.2, z: 2.3, rot: Math.PI / 2 }, // 0: Excel Engineer (Pod Kiri Depan)
+  { x: -1.3, z: 2.8, rot: 0 }, // 1: Dashboard Analyst (Pod Tengah Depan)
+  { x: -4.2, z: -0.6, rot: Math.PI / 2 }, // 2: Automation Engineer (Pod Kiri Tengah)
+  { x: 4.3, z: 2.2, rot: -Math.PI / 2 }, // 3: Secretary (Pod Kanan Depan)
+  { x: 1.6, z: 2.8, rot: 0 }, // 4: QA & Documentation (Pod Tengah Kanan)
+  { x: -3.1, z: -2.9, rot: 0 }, // 5: Social Media Specialist (Studio Pojok Kiri)
+  { x: 4.3, z: -0.2, rot: -Math.PI / 2 }, // 6: Business Analyst (Pod Kanan Tengah)
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
 ];
 
 type DeskSlot = { x: number; z: number; rot: number };
@@ -219,6 +231,7 @@ const seatAt = (d: DeskSlot): [number, number, number] => [
   d.z + Math.cos(d.rot) * 0.8,
 ];
 
+<<<<<<< HEAD
 function buildOfficeLayout(count: number): OfficeLayout {
   const n = Math.max(0, count);
   /* Agen #0 duduk di sofa (CEO), agen #2 berkeliling di lounge; sisanya punya meja */
@@ -277,6 +290,167 @@ function buildOfficeLayout(count: number): OfficeLayout {
       : BASE_FRONT_Z;
   return { stations, desks, rows, zFront, extra: zFront - BASE_FRONT_Z };
 }
+=======
+const AGENT_STATIONS: AgentStationConfig[] = [
+  // 0: AI CEO — duduk di sofa sambil membuka laptop
+  {
+    seatPos: [3.5, 0.06, -1.72],
+    facingY: 0,
+    shirtColor: 0x3f6fb5,
+    hairColor: 0x1e1b18,
+    skinColor: 0xe0b48a,
+    onSofa: true,
+    look: { hair: "swept" },
+    roomLabel: "Area Lounge · Sofa",
+    optimalModel: "claude-opus-5-5",
+  },
+  // 1: Excel Engineer
+  {
+    seatPos: seatAt(DESKS[0]),
+    facingY: DESKS[0].rot + Math.PI,
+    shirtColor: 0xe9b84a,
+    hairColor: 0x1f1a17,
+    skinColor: 0xf0c9a4,
+    look: { hair: "short" },
+    roomLabel: "Meja Engineering",
+    optimalModel: "deepseek-v4.1-flash",
+  },
+  // 2: Business Analyst — duduk di meja pod kanan tengah
+  {
+    seatPos: seatAt(DESKS[6]),
+    facingY: DESKS[6].rot + Math.PI,
+    shirtColor: 0xf07a6a,
+    hairColor: 0x2a1a14,
+    skinColor: 0xc99a6b,
+    look: { hair: "long" },
+    roomLabel: "Open Workspace · Meja Analis",
+    optimalModel: "claude-sonnet-5",
+  },
+  // 3: Dashboard Analyst
+  {
+    seatPos: seatAt(DESKS[1]),
+    facingY: DESKS[1].rot + Math.PI,
+    shirtColor: 0x8a6ad0,
+    hairColor: 0x3b2f2f,
+    skinColor: 0xe0b48a,
+    look: { hair: "bun" },
+    roomLabel: "Open Workspace · Meja B1",
+    optimalModel: "gemini-3.1-pro-preview",
+  },
+  // 4: Automation Engineer
+  {
+    seatPos: seatAt(DESKS[2]),
+    facingY: DESKS[2].rot + Math.PI,
+    shirtColor: 0x2f3647,
+    hairColor: 0x111827,
+    skinColor: 0xe0b48a,
+    look: { hair: "short", glasses: true, hoodie: true },
+    roomLabel: "Open Workspace · Meja A2",
+    optimalModel: "deepseek-v4.1-flash",
+  },
+  // 5: Secretary
+  {
+    seatPos: seatAt(DESKS[3]),
+    facingY: DESKS[3].rot + Math.PI,
+    shirtColor: 0xf06fa5,
+    hairColor: 0x27272a,
+    skinColor: 0xf0c9a4,
+    look: { hair: "pony" },
+    roomLabel: "Open Workspace · Meja A1",
+    optimalModel: "claude-sonnet-5",
+  },
+  // 6: QA & Documentation
+  {
+    seatPos: seatAt(DESKS[4]),
+    facingY: DESKS[4].rot + Math.PI,
+    shirtColor: 0xf3f1f5,
+    hairColor: 0x18181b,
+    skinColor: 0xe0b48a,
+    look: { hair: "short", headphones: true, hoodie: true },
+    roomLabel: "Open Workspace · Meja A3",
+    optimalModel: "claude-sonnet-5",
+  },
+  // 7: Social Media Specialist
+  {
+    seatPos: seatAt(DESKS[5]),
+    facingY: DESKS[5].rot + Math.PI,
+    shirtColor: 0x35b7a8,
+    hairColor: 0x2e1065,
+    skinColor: 0xf0c9a4,
+    look: { hair: "bob" },
+    roomLabel: "Open Workspace · Studio Sosmed",
+    optimalModel: "claude-opus-5-5",
+  },
+];
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
+
+const EXTRA_DESK_SLOTS = [
+  { x: -1.3, z: -0.2, rot: 0 }, // 8: Tambahan 1 (Tengah)
+  { x: 1.6, z: -0.2, rot: 0 }, // 9: Tambahan 2 (Tengah Kanan)
+  { x: -4.2, z: -3.2, rot: Math.PI / 2 }, // 10: Tambahan 3 (Pojok Kiri Belakang)
+  { x: 0.1, z: 3.1, rot: 0 }, // 11: Tambahan 4 (Depan Tengah)
+];
+
+const EXTRA_SHIRTS = [0x38bdf8, 0xf59e0b, 0x10b981, 0xa855f7, 0xf43f5e, 0x14b8a6];
+const EXTRA_HAIRS: LookConfig["hair"][] = ["short", "swept", "bob", "pony", "bun", "long"];
+
+function getExtraDeskConfig(stationIndex: number) {
+  const extraIdx = stationIndex - AGENT_STATIONS.length;
+  if (extraIdx < EXTRA_DESK_SLOTS.length) {
+    return EXTRA_DESK_SLOTS[extraIdx];
+  }
+  const overflow = extraIdx - EXTRA_DESK_SLOTS.length;
+  const col = overflow % 4;
+  const row = Math.floor(overflow / 4);
+  return {
+    x: -3.6 + col * 2.4,
+    z: 4.1 + row * 1.9,
+    rot: 0,
+  };
+}
+
+function getAgentStationConfig(index: number): AgentStationConfig {
+  if (index < AGENT_STATIONS.length) {
+    return AGENT_STATIONS[index];
+  }
+  const desk = getExtraDeskConfig(index);
+  const extraIdx = index - AGENT_STATIONS.length;
+  return {
+    seatPos: seatAt(desk),
+    facingY: desk.rot + Math.PI,
+    shirtColor: EXTRA_SHIRTS[extraIdx % EXTRA_SHIRTS.length],
+    hairColor: extraIdx % 2 === 0 ? 0x1f2937 : 0x3b2f2f,
+    skinColor: extraIdx % 2 === 0 ? 0xe0b48a : 0xf0c9a4,
+    look: {
+      hair: EXTRA_HAIRS[extraIdx % EXTRA_HAIRS.length],
+      glasses: extraIdx % 3 === 0,
+      headphones: extraIdx % 3 === 1,
+    },
+    roomLabel: `Open Workspace · Meja Tambahan #${extraIdx + 1}`,
+    optimalModel: "claude-sonnet-5",
+  };
+}
+
+const FUNNY_QUIPS = [
+  "Lagi pura-pura mikir keras biar nggak dikasih revisi 🤫",
+  "Kopi ke-3 hari ini, jantung mulai nge-rap ☕",
+  "Rumus VLOOKUP-ku kok #REF! padahal udah doa 😭",
+  "Menunggu approval Founder dengan penuh harap 🙏",
+  "Kalau laptop hang, itu bukan bug tapi coffee break",
+  "Mode fokus: jangan ganggu (padahal lagi scroll Threads)",
+  "Otak lagi buffering 99%... 🔄",
+  "Siap lembur asal ada gorengan 🍌",
+  "Macro jalan mulus = tidur nyenyak malam ini ✨",
+  "Eh barusan Kocheng Oren lewat ngintip layar 🐈",
+];
+
+const CAT_QUOTES = [
+  "🐈 Meong! Kocheng CMO lagi audit stok ikan & snack kantor!",
+  "🐈 Purr... Jangan lupa ngopi dulu Bos, nanti rumus error!",
+  "🐈 Meow! Aku manajer sesungguhnya di kantor ini 😎",
+  "🐈 Kocheng Oren menyetujui semua KPI hari ini (+100% gemoy)!",
+  "🐈 Hati-hati, kabel LAN hampir jadi mainan baruku!",
+];
 
 const FIRST_NAMES = [
   "Raka",
@@ -532,6 +706,9 @@ export default function VirtualOffice3D({
 
   const [roleMode, setRoleMode] = useState<"Watcher" | "CEO">("CEO");
   const [cameraDim, setCameraDim] = useState<"2.5D" | "3D">("3D");
+  const [headLabelMode, setHeadLabelMode] = useState<
+    "name" | "role" | "both" | "hide"
+  >("both");
 
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [menuScreenPos, setMenuScreenPos] = useState({ x: 460, y: 320 });
@@ -572,7 +749,19 @@ export default function VirtualOffice3D({
   const [creatingProj, setCreatingProj] = useState(false);
 
   const [clockText, setClockText] = useState("");
+<<<<<<< HEAD
   const branding = useWorkspaceBranding();
+=======
+  const [branding, setBranding] = useState<WorkspaceSettings>(
+    DEFAULT_WORKSPACE_SETTINGS,
+  );
+  const [randomQuip, setRandomQuip] = useState<{
+    agentId: number;
+    text: string;
+  } | null>(null);
+  const coffeeBreakUntilRef = useRef(0);
+  const showToastRef = useRef<(msg: string, ms?: number) => void>(() => {});
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
 
   /* Ref yang dibaca loop animasi (tanpa memicu render ulang) */
   const roleModeRef = useRef(roleMode);
@@ -620,9 +809,13 @@ export default function VirtualOffice3D({
     if (walkedForRef.current === externalSelectedAgentId) return;
     const idx = agents.findIndex((a) => a.id === externalSelectedAgentId);
     if (idx < 0) return;
+<<<<<<< HEAD
     const station = layout.stations[idx];
     if (!station) return;
     const [wx, wz] = walkNear(station, layout.zFront);
+=======
+    const [wx, wz] = walkNear(getAgentStationConfig(idx));
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
     ceoTargetRef.current.set(wx, 0, wz);
     walkedForRef.current = externalSelectedAgentId;
   }, [externalSelectedAgentId, agents, layout]);
@@ -762,13 +955,18 @@ export default function VirtualOffice3D({
     scene.environment = envTexture;
     scene.environmentIntensity = 0.35;
 
-    /* ---------- Cahaya: senja lembut, rim biru dari jendela kota, lampu hangat ---------- */
-    scene.add(new THREE.HemisphereLight(0xf7f0ff, 0x776a88, 0.9));
+    /* ---------- Cahaya: Modern Dark Executive (kontras tajam, rim cyan & aksen hangat) ---------- */
+    scene.add(new THREE.HemisphereLight(0xdbeafe, 0x0f172a, 0.85));
 
+<<<<<<< HEAD
     const sun = new THREE.DirectionalLight(0xffe5d2, 1.45);
     sun.position.set(9, 15, 10 + midZ);
     sun.target.position.set(0, 0, midZ);
     scene.add(sun.target);
+=======
+    const sun = new THREE.DirectionalLight(0xe2e8f0, 1.35);
+    sun.position.set(9, 15, 10);
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
     sun.castShadow = true;
     sun.shadow.mapSize.set(1536, 1536);
     sun.shadow.camera.near = 1;
@@ -783,17 +981,17 @@ export default function VirtualOffice3D({
     sun.shadow.radius = 3;
     scene.add(sun);
 
-    const rimLight = new THREE.DirectionalLight(0xb9a0ff, 0.65);
+    const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.85);
     rimLight.position.set(2, 6, -12);
     scene.add(rimLight);
 
-    for (const [lx, lz] of [
-      [-5.2, 0.4],
-      [1.3, -0.2],
-      [3.5, 2.4],
-    ]) {
-      const p = new THREE.PointLight(0xffc7dc, 9, 8, 2);
-      p.position.set(lx, 2.4, lz);
+    for (const [lx, lz, col] of [
+      [-4.2, 0.8, 0x7dd3fc],
+      [1.3, -0.2, 0xfde68a],
+      [3.5, 2.0, 0x93c5fd],
+    ] as [number, number, number][]) {
+      const p = new THREE.PointLight(col, 8, 9, 2);
+      p.position.set(lx, 2.5, lz);
       scene.add(p);
     }
     for (let r = 1; r < layout.rows; r++) {
@@ -907,30 +1105,31 @@ export default function VirtualOffice3D({
       texList.push(t);
       return t;
     };
-    /* ---------- Material ---------- */
-    const wallPurple = M(0xf1edfa, 0.9);
-    const wallPurple2 = M(0xe5def2, 0.9);
-    const darkMetal = M(0x39364a, 0.45, 0.5);
-    const woodLight = M(0xe9d9c8, 0.55);
-    const woodMid = M(0xb99578, 0.55);
-    const woodDark = M(0x755b59, 0.6);
-    const navy = M(0x8176a8, 0.8);
-    const potTerra = M(0xd98985, 0.8);
-    const potWhite = M(0xf5f0e9, 0.8);
-    const leafA = M(0x62a860, 0.7);
-    const leafB = M(0x3f8f58, 0.7);
-    const leafC = M(0x86c06a, 0.7);
+    /* ---------- Material: Modern Dark Executive ---------- */
+    const wallPurple = M(0x161b26, 0.88);
+    const wallPurple2 = M(0x10141d, 0.9);
+    const darkMetal = M(0x1e293b, 0.35, 0.65);
+    const woodLight = M(0x64748b, 0.4, 0.2);
+    const woodMid = M(0x3b2f2a, 0.5);
+    const woodDark = M(0x1a1720, 0.55);
+    const navy = M(0x334155, 0.75);
+    const potTerra = M(0x334155, 0.65);
+    const potWhite = M(0x1e293b, 0.6);
+    const leafA = M(0x2e7d5b, 0.7);
+    const leafB = M(0x1f5e43, 0.7);
+    const leafC = M(0x3d9970, 0.7);
     const glassM = new THREE.MeshPhysicalMaterial({
-      color: 0xdbeafe,
+      color: 0xbae6fd,
       transparent: true,
-      opacity: 0.12,
-      roughness: 0.05,
+      opacity: 0.16,
+      roughness: 0.04,
+      metalness: 0.1,
       depthWrite: false,
     });
     const lampGlow = new THREE.MeshStandardMaterial({
-      color: 0xfff1e5,
-      emissive: 0xffb7d5,
-      emissiveIntensity: 1.6,
+      color: 0xe0f2fe,
+      emissive: 0x38bdf8,
+      emissiveIntensity: 1.5,
     });
 
     /* ---------- Tekstur: logo, kota senja, layar, papan ---------- */
@@ -1120,20 +1319,35 @@ export default function VirtualOffice3D({
       paintChalkTex(b);
     };
 
-    /* ---------- Platform kayu melayang ---------- */
+    /* ---------- Platform kayu gelap eksekutif ---------- */
     const floorGroup = new THREE.Group();
     scene.add(floorGroup);
+<<<<<<< HEAD
     const roomD = 9.2 + extra;
     scene.add(mk(RB(12.6, 0.45, 8.6 + extra, 0.35), woodDark, 0, -0.72, midZ));
     scene.add(
       mk(RB(13.8, 0.5, 9.8 + extra, 0.35), M(0xcf9a62, 0.6), 0, -0.25, midZ),
     );
+=======
+    scene.add(mk(RB(12.6, 0.45, 8.6, 0.35), woodDark, 0, -0.72, 0));
+    scene.add(mk(RB(13.8, 0.5, 9.8, 0.35), M(0x1e2433, 0.5), 0, -0.25, 0));
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
 
     const woodTex = makeTexture(512, drawWood, [5, 2.5 * (roomD / 9.2)]);
     texList.push(woodTex);
     const floor = mk(
+<<<<<<< HEAD
       BX(13.2, 0.08, roomD),
       new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.55 }),
+=======
+      BX(13.2, 0.08, 9.2),
+      new THREE.MeshStandardMaterial({
+        map: woodTex,
+        color: 0x5c504a,
+        roughness: 0.45,
+        metalness: 0.1,
+      }),
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
       0,
       0,
       midZ,
@@ -1143,7 +1357,7 @@ export default function VirtualOffice3D({
 
     const blobTex = canvasTex(256, 256, (c, w, h) => {
       const g = c.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w / 2);
-      g.addColorStop(0, "rgba(0,0,0,0.5)");
+      g.addColorStop(0, "rgba(0,0,0,0.65)");
       g.addColorStop(1, "rgba(0,0,0,0)");
       c.fillStyle = g;
       c.fillRect(0, 0, w, h);
@@ -1160,8 +1374,9 @@ export default function VirtualOffice3D({
     blob.position.set(0.3, -1.1, 0.6 + midZ);
     scene.add(blob);
 
-    /* Karpet bulat di area lounge + karpet krem di area meja */
+    /* Karpet cozy hangat-gelap di area lounge + karpet slate di area pod kerja */
     const roundRug = (r: number, y: number, color: number) =>
+<<<<<<< HEAD
       scene.add(mk(CY(r, r, 0.02, 48), M(color, 0.95), 1.3, y, -0.2, false));
     roundRug(1.9, 0.05, 0xb49bd8);
     roundRug(1.45, 0.062, 0xd1c2e9);
@@ -1176,11 +1391,20 @@ export default function VirtualOffice3D({
         mk(RB(11.6, 0.018, 1.6, 0.01), M(0xece5f6, 0.98), 0, 0.052, rz, false),
       );
     }
+=======
+      scene.add(mk(CY(r, r, 0.02, 48), M(color, 0.92), 1.3, y, -0.2, false));
+    roundRug(1.95, 0.05, 0x26293d);
+    roundRug(1.5, 0.062, 0x34314a);
+    roundRug(1.0, 0.074, 0x453b52);
+    scene.add(
+      mk(RB(3.6, 0.016, 4.6, 0.01), M(0x182030, 0.95), -3.3, 0.055, 0.9, false),
+    );
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
 
     const walkRingGeo = new THREE.RingGeometry(0.22, 0.32, 28);
     walkRingGeo.rotateX(-Math.PI / 2);
     const walkRingMat = new THREE.MeshBasicMaterial({
-      color: 0xf5c46b,
+      color: 0x38bdf8,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0,
@@ -1189,7 +1413,7 @@ export default function VirtualOffice3D({
     walkRing.position.set(1.6, 0.1, 2.2);
     scene.add(walkRing);
 
-    /* ---------- Dinding: pastel + logo, jendela kota ---------- */
+    /* ---------- Dinding gelap + partisi kaca & aksen neon halus ---------- */
     const H = 3.3;
     scene.add(mk(RB(7.3, H, 0.3, 0.03), wallPurple, -3.05, H / 2, -4.45));
     scene.add(mk(RB(6.1, 0.75, 0.3, 0.03), wallPurple2, 3.65, 0.375, -4.45));
@@ -1202,15 +1426,25 @@ export default function VirtualOffice3D({
     );
 
     const ledMaterial = new THREE.MeshStandardMaterial({
-      color: 0xc9a7ff,
-      emissive: 0x9c5cff,
-      emissiveIntensity: 1.5,
+      color: 0x7dd3fc,
+      emissive: 0x0ea5e9,
+      emissiveIntensity: 1.35,
       toneMapped: false,
     });
     scene.add(mk(BX(12.4, 0.035, 0.035), ledMaterial, 0, 0.08, -4.37, false));
     scene.add(
       mk(BX(0.035, 0.035, 8.8 + extra), ledMaterial, -6.48, 0.08, midZ, false),
     );
+
+    // Partisi kaca pemisah zona kerja & executive lounge
+    const glassPart = new THREE.Group();
+    glassPart.position.set(-1.1, 0, -1.6);
+    glassPart.add(mk(BX(0.05, 2.1, 2.4), glassM, 0, 1.08, 0, false));
+    glassPart.add(mk(BX(0.08, 2.15, 0.08), darkMetal, 0, 1.08, -1.2));
+    glassPart.add(mk(BX(0.08, 2.15, 0.08), darkMetal, 0, 1.08, 1.2));
+    glassPart.add(mk(BX(0.08, 0.07, 2.48), darkMetal, 0, 2.14, 0));
+    glassPart.add(mk(BX(0.04, 0.03, 2.36), ledMaterial, 0, 0.06, 0, false));
+    scene.add(glassPart);
 
     const winH = H - 1.05;
     const sky = new THREE.Mesh(
@@ -1577,8 +1811,8 @@ export default function VirtualOffice3D({
     cp.scale.set(1, 1.1, 1);
     scene.add(cp);
 
-    // Sofa
-    const sofaM = M(0x9c8ac4, 0.85);
+    // Sofa Eksekutif (Dark Leather)
+    const sofaM = M(0x1f2937, 0.65);
     const sofa = new THREE.Group();
     sofa.position.set(2.8, 0, -1.8);
     sofa.add(mk(RB(3.4, 0.32, 1.0, 0.12), sofaM, 0, 0.2, 0));
@@ -1586,20 +1820,20 @@ export default function VirtualOffice3D({
     for (const ax of [-1.6, 1.6])
       sofa.add(mk(RB(0.3, 0.55, 1.0, 0.1), sofaM, ax, 0.38, 0));
     for (const cx of [-0.8, 0.8])
-      sofa.add(mk(RB(1.5, 0.14, 0.85, 0.07), M(0xb7a6d9, 0.9), cx, 0.43, 0.05));
+      sofa.add(mk(RB(1.5, 0.14, 0.85, 0.07), M(0x2b3648, 0.75), cx, 0.43, 0.05));
     [
-      [-1.0, 0xd9c4e7, 0.2],
-      [-0.5, 0xf4e8d9, -0.1],
-      [1.1, 0xe7b2c4, -0.2],
+      [-1.0, 0x334155, 0.2],
+      [-0.5, 0xd97706, -0.1],
+      [1.1, 0x0ea5e9, -0.2],
     ].forEach(([px, c, rz]) => {
-      const pil = mk(RB(0.42, 0.42, 0.14, 0.06), M(c, 0.9), px, 0.75, -0.25);
+      const pil = mk(RB(0.42, 0.42, 0.14, 0.06), M(c, 0.85), px, 0.75, -0.25);
       pil.rotation.z = rz;
       pil.rotation.x = -0.25;
       sofa.add(pil);
     });
     const blanket = mk(
       RB(0.54, 0.1, 0.72, 0.06),
-      M(0xf0dfca, 0.98),
+      M(0x92400e, 0.92),
       -1.28,
       0.52,
       0.08,
@@ -1610,7 +1844,7 @@ export default function VirtualOffice3D({
       sofa.add(
         mk(
           SP(0.035, 8, 6),
-          M(0xe4cdb7, 0.98),
+          M(0xb45309, 0.95),
           -1.48 + fringe * 0.1,
           0.46,
           0.42,
@@ -1620,11 +1854,28 @@ export default function VirtualOffice3D({
     }
     scene.add(sofa);
 
-    // Bean bag pink
-    const bean = mk(SP(0.7, 20, 14), M(0xe7a9bd, 0.95), -0.3, 0.45, -1.0);
+    // Standing Floor Lamp (Warm Cozy Glow di sudut sofa)
+    const cozyCornerLamp = new THREE.Group();
+    cozyCornerLamp.position.set(4.9, 0, -1.45);
+    cozyCornerLamp.add(mk(CY(0.24, 0.28, 0.05, 20), darkMetal, 0, 0.025, 0));
+    cozyCornerLamp.add(mk(CY(0.03, 0.03, 2.05, 12), darkMetal, 0, 1.05, 0));
+    const warmShadeMat = new THREE.MeshStandardMaterial({
+      color: 0xfff3d6,
+      emissive: 0xffa94d,
+      emissiveIntensity: 1.4,
+      roughness: 0.4,
+    });
+    cozyCornerLamp.add(mk(CY(0.22, 0.3, 0.34, 20), warmShadeMat, 0, 2.08, 0, false));
+    const cozyWarmLight = new THREE.PointLight(0xffb36b, 7.5, 7.5, 2);
+    cozyWarmLight.position.set(0, 1.95, 0);
+    cozyCornerLamp.add(cozyWarmLight);
+    scene.add(cozyCornerLamp);
+
+    // Bean bag dark charcoal
+    const bean = mk(SP(0.7, 20, 14), M(0x27303f, 0.85), -0.1, 0.45, -1.0);
     bean.scale.set(1, 0.72, 1);
     scene.add(bean);
-    const beanTop = mk(SP(0.4, 16, 12), M(0xf0bfd0, 0.95), -0.25, 0.7, -1.0);
+    const beanTop = mk(SP(0.4, 16, 12), M(0x334155, 0.85), -0.05, 0.7, -1.0);
     beanTop.scale.set(1, 0.5, 1);
     scene.add(beanTop);
 
@@ -1740,8 +1991,8 @@ export default function VirtualOffice3D({
       const visor = M(0x1a2040, 0.25);
       const glow = new THREE.MeshBasicMaterial({ color: 0x6fdcff });
       const g = new THREE.Group();
-      g.position.set(4.5, 0.12, 0.3);
-      g.rotation.y = -0.5;
+      g.position.set(5.5, 0.12, -0.9);
+      g.rotation.y = -0.7;
       const bodyR = mk(CP(0.2, 0.18), white, 0, 0.62, 0);
       bodyR.scale.set(1, 1, 0.9);
       g.add(bodyR);
@@ -1829,17 +2080,33 @@ export default function VirtualOffice3D({
       const group = new THREE.Group();
       const body = new THREE.Group();
       group.add(body);
-      const hipY = seated ? 0.5 : 0.74;
-      const shirtM = M(shirt, 0.8);
-      const skinM = M(skin, 0.55);
-      const hairM = M(hair, 0.8);
-      const pantsM = M(0x30364a, 0.85);
-      const shoeM = M(0xf3f1f5, 0.6);
+      const hipY = seated ? 0.5 : 0.84;
+      const shirtM = M(shirt, 0.72);
+      const skinM = M(skin, 0.48);
+      const hairM = M(hair, 0.75);
+      const pantsM = M(0x1e2433, 0.78);
+      const shoeM = M(0x18181b, 0.35, 0.2);
+      const collarM = M(0xe2e8f0, 0.65);
+      const beltM = M(0x0f172a, 0.4, 0.3);
       const ink = M(0x1c1b22, 0.35);
 
-      const torso = mk(CP(0.14, 0.18), shirtM, 0, hipY + 0.2, 0);
-      torso.scale.set(1.15, 1, 0.85);
-      body.add(torso);
+      // Realistic tapered torso (chest + waist + belt + collar)
+      const chest = mk(CP(0.14, 0.24), shirtM, 0, hipY + 0.30, 0);
+      chest.scale.set(1.24, 1.0, 0.76);
+      body.add(chest);
+      const waist = mk(CP(0.115, 0.16), shirtM, 0, hipY + 0.12, 0);
+      waist.scale.set(1.12, 1.0, 0.74);
+      body.add(waist);
+      const belt = mk(CY(0.122, 0.124, 0.038, 16), beltM, 0, hipY + 0.035, 0);
+      belt.scale.set(1.12, 1, 0.78);
+      body.add(belt);
+      body.add(mk(BX(0.042, 0.036, 0.015), M(0x94a3b8, 0.25, 0.85), 0, hipY + 0.035, 0.098));
+
+      // Shirt collar
+      const collar = mk(CY(0.068, 0.085, 0.04, 14), collarM, 0, hipY + 0.455, 0.01);
+      collar.scale.set(1.1, 1, 0.9);
+      body.add(collar);
+
       let nameTag: CharacterRig["nameTag"];
       if (agentIndex >= 0) {
         const canvas = document.createElement("canvas");
@@ -1856,129 +2123,137 @@ export default function VirtualOffice3D({
           depthWrite: false,
         });
         const mesh = new THREE.Mesh(
-          G("nameTagPlane", () => new THREE.PlaneGeometry(0.2, 0.075)),
+          G("nameTagPlane", () => new THREE.PlaneGeometry(0.18, 0.068)),
           material,
         );
-        mesh.position.set(0, hipY + 0.2, 0.143);
+        mesh.position.set(0, hipY + 0.31, 0.122);
         body.add(mesh);
         nameTag = { canvas, texture, name };
       }
-      const pelvis = mk(SP(0.135, 16, 12), pantsM, 0, hipY - 0.015, 0);
-      pelvis.scale.set(1.05, 0.72, 0.9);
+      const pelvis = mk(SP(0.125, 16, 12), pantsM, 0, hipY - 0.01, 0);
+      pelvis.scale.set(1.08, 0.72, 0.82);
       body.add(pelvis);
       if (look.hoodie) {
-        const hood = mk(SP(0.15, 12, 10), shirtM, 0, hipY + 0.43, -0.09);
-        hood.scale.set(1.3, 0.6, 0.8);
+        const hood = mk(SP(0.11, 12, 10), shirtM, 0, hipY + 0.48, -0.075);
+        hood.scale.set(1.3, 0.55, 0.75);
         body.add(hood);
       }
 
+      // Realistic Adult Head & Facial Structure
       const head = new THREE.Group();
-      head.position.set(0, hipY + 0.43, 0);
-      head.add(mk(CY(0.05, 0.06, 0.08, 10), skinM, 0, 0.02, 0));
-      const skull = mk(SP(0.21, 22, 16), skinM, 0, 0.2, 0);
-      skull.scale.set(1.05, 1, 1);
+      head.position.set(0, hipY + 0.48, 0);
+      head.add(mk(CY(0.042, 0.048, 0.10, 12), skinM, 0, 0.03, 0));
+
+      const skull = mk(SP(0.125, 24, 18), skinM, 0, 0.175, 0);
+      skull.scale.set(0.92, 1.12, 0.98);
       head.add(skull);
 
+      // Ears
+      for (const sx of [-1, 1]) {
+        const ear = mk(SP(0.022, 10, 8), skinM, sx * 0.115, 0.17, -0.005);
+        ear.scale.set(0.45, 1.15, 0.75);
+        head.add(ear);
+      }
+
+      // Realistic Hair
       const cap = mk(
         G(
-          "hairCap",
+          "hairCapReal",
           () =>
             new THREE.SphereGeometry(
-              0.22,
-              20,
-              12,
+              0.13,
+              22,
+              14,
               0,
               Math.PI * 2,
               0,
-              Math.PI * 0.56,
+              Math.PI * 0.58,
             ),
         ),
         hairM,
         0,
-        0.2,
+        0.18,
         -0.01,
       );
-      cap.scale.set(1.07, 1.02, 1.05);
+      cap.scale.set(0.95, 1.13, 1.01);
       head.add(cap);
-      const fringe = mk(SP(0.12, 10, 8), hairM, 0, 0.35, 0.12);
-      fringe.scale.set(1.3, 0.45, 0.7);
+
+      const fringe = mk(SP(0.072, 12, 8), hairM, 0, 0.275, 0.075);
+      fringe.scale.set(1.25, 0.42, 0.68);
       if (look.hair !== "bun") head.add(fringe);
       if (look.hair === "swept") {
-        const sw = mk(SP(0.1, 10, 8), hairM, 0.05, 0.4, 0.1);
-        sw.scale.set(1.4, 0.55, 1);
+        const sw = mk(SP(0.065, 12, 8), hairM, 0.03, 0.30, 0.055);
+        sw.scale.set(1.35, 0.5, 1.0);
         head.add(sw);
       } else if (look.hair === "bun") {
-        head.add(mk(SP(0.09, 12, 10), hairM, 0, 0.46, -0.06));
+        head.add(mk(SP(0.055, 12, 10), hairM, 0, 0.32, -0.07));
       } else if (look.hair === "long") {
-        const back = mk(SP(0.2, 14, 10), hairM, 0, 0.06, -0.08);
-        back.scale.set(1.1, 1.7, 0.8);
+        const back = mk(SP(0.125, 16, 12), hairM, 0, 0.07, -0.055);
+        back.scale.set(1.02, 1.65, 0.72);
         head.add(back);
       } else if (look.hair === "pony") {
-        const tail = mk(CP(0.045, 0.16), hairM, 0, 0.12, -0.27);
-        tail.rotation.x = -0.4;
+        const tail = mk(CP(0.03, 0.14), hairM, 0, 0.11, -0.175);
+        tail.rotation.x = -0.35;
         head.add(tail);
-        head.add(mk(SP(0.04, 8, 6), M(0xe94f6b, 0.6), 0, 0.26, -0.2));
+        head.add(mk(SP(0.025, 8, 6), M(0x334155, 0.6), 0, 0.21, -0.135));
       } else if (look.hair === "bob") {
-        const back = mk(SP(0.21, 14, 10), hairM, 0, 0.1, -0.03);
-        back.scale.set(1.15, 1, 1.05);
+        const back = mk(SP(0.128, 16, 12), hairM, 0, 0.11, -0.025);
+        back.scale.set(1.05, 1.02, 0.98);
         head.add(back);
       }
 
-      for (const ex of [-0.075, 0.075]) {
-        const eye = mk(SP(0.026, 10, 8), ink, ex, 0.18, 0.2, false);
-        eye.scale.set(1, 1.25, 0.6);
-        head.add(eye);
-        const cheek = mk(
-          SP(0.03, 8, 6),
-          M(0xf29a9a, 0.8),
-          ex * 1.75,
-          0.12,
-          0.15,
-          false,
-        );
-        cheek.scale.set(1.3, 0.8, 0.4);
-        head.add(cheek);
+      // Realistic Eyes (sclera + iris), Eyebrows, Nose & Lips
+      const scleraM = M(0xf8fafc, 0.3);
+      const lipM = M(0xb8756e, 0.65);
+      for (const ex of [-0.042, 0.042]) {
+        const sclera = mk(SP(0.015, 10, 8), scleraM, ex, 0.175, 0.112, false);
+        sclera.scale.set(1.15, 0.72, 0.45);
+        head.add(sclera);
+        const iris = mk(SP(0.0085, 10, 8), ink, ex, 0.175, 0.118, false);
+        iris.scale.set(1, 1, 0.5);
+        head.add(iris);
+        const brow = mk(BX(0.036, 0.0065, 0.01), hairM, ex, 0.205, 0.112, false);
+        brow.rotation.z = ex < 0 ? 0.06 : -0.06;
+        head.add(brow);
       }
-      const smile = mk(
-        G("smile", () => new THREE.TorusGeometry(0.04, 0.007, 6, 12, Math.PI)),
-        ink,
-        0,
-        0.115,
-        0.192,
-        false,
-      );
-      smile.rotation.z = Math.PI;
-      head.add(smile);
+      // Nose
+      const nose = mk(CP(0.0095, 0.024), skinM, 0, 0.15, 0.123, false);
+      nose.rotation.x = -0.2;
+      head.add(nose);
+      // Natural Lips
+      const lips = mk(BX(0.034, 0.007, 0.012), lipM, 0, 0.112, 0.117, false);
+      head.add(lips);
 
       if (look.glasses) {
+        const frameM = M(0x0f172a, 0.25, 0.75);
         const ringG = G(
-          "glassRing",
-          () => new THREE.TorusGeometry(0.05, 0.008, 8, 20),
+          "glassRingReal",
+          () => new THREE.TorusGeometry(0.026, 0.0038, 8, 20),
         );
-        for (const ex of [-0.078, 0.078])
-          head.add(mk(ringG, ink, ex, 0.18, 0.205, false));
-        head.add(mk(BX(0.04, 0.008, 0.008), ink, 0, 0.19, 0.208, false));
+        for (const ex of [-0.043, 0.043])
+          head.add(mk(ringG, frameM, ex, 0.175, 0.123, false));
+        head.add(mk(BX(0.026, 0.004, 0.005), frameM, 0, 0.178, 0.125, false));
       }
       if (look.headphones) {
-        const bandM = M(0x35b7a8, 0.5);
+        const bandM = M(0x1e293b, 0.35, 0.6);
         head.add(
           mk(
             G(
-              "hpBand",
-              () => new THREE.TorusGeometry(0.225, 0.016, 8, 24, Math.PI),
+              "hpBandReal",
+              () => new THREE.TorusGeometry(0.132, 0.009, 8, 24, Math.PI),
             ),
             bandM,
             0,
-            0.2,
+            0.185,
             0,
           ),
         );
-        for (const sx of [-0.225, 0.225]) {
+        for (const sx of [-0.132, 0.132]) {
           const cup = mk(
-            CY(0.07, 0.07, 0.05, 14),
-            M(0xe94f6b, 0.5),
+            CY(0.038, 0.038, 0.028, 14),
+            M(0x334155, 0.35, 0.5),
             sx,
-            0.2,
+            0.175,
             0,
           );
           cup.rotation.z = Math.PI / 2;
@@ -1989,17 +2264,20 @@ export default function VirtualOffice3D({
 
       const makeArm = (side: number) => {
         const arm = new THREE.Group();
-        arm.position.set(side * 0.18, hipY + 0.34, 0);
-        const shoulder = mk(SP(0.075, 16, 12), shirtM, 0, 0, 0);
-        shoulder.scale.set(1, 1.05, 0.95);
+        arm.position.set(side * 0.195, hipY + 0.40, 0);
+        const shoulder = mk(SP(0.052, 14, 10), shirtM, 0, 0, 0);
+        shoulder.scale.set(1, 1.05, 0.92);
         arm.add(shoulder);
-        arm.add(mk(CP(0.052, 0.15), shirtM, 0, -0.13, 0));
+        arm.add(mk(CP(0.043, 0.19), shirtM, 0, -0.14, 0));
         const elbow = new THREE.Group();
-        elbow.position.set(0, -0.25, 0);
-        elbow.add(mk(SP(0.058, 14, 10), shirtM, 0, 0, 0));
-        elbow.add(mk(CP(0.047, 0.14), shirtM, 0, -0.105, 0));
-        const hand = mk(SP(0.052, 14, 10), skinM, 0, -0.225, 0.008);
-        hand.scale.set(0.9, 0.82, 0.85);
+        elbow.position.set(0, -0.27, 0);
+        elbow.add(mk(SP(0.041, 12, 10), shirtM, 0, 0, 0));
+        elbow.add(mk(CP(0.036, 0.18), shirtM, 0, -0.12, 0));
+        // Wristwatch on left arm
+        if (side < 0) {
+          elbow.add(mk(CY(0.039, 0.039, 0.016, 12), M(0x0f172a, 0.3, 0.7), 0, -0.22, 0));
+        }
+        const hand = mk(RB(0.042, 0.068, 0.028, 0.012), skinM, 0, -0.26, 0.006);
         elbow.add(hand);
         arm.add(elbow);
         body.add(arm);
@@ -2010,14 +2288,14 @@ export default function VirtualOffice3D({
 
       const makeLeg = (side: number) => {
         const leg = new THREE.Group();
-        leg.position.set(side * 0.09, hipY, 0);
-        leg.add(mk(SP(0.078, 14, 10), pantsM, 0, 0, 0));
-        leg.add(mk(CP(0.07, 0.2), pantsM, 0, -0.17, 0));
+        leg.position.set(side * 0.088, hipY, 0);
+        leg.add(mk(SP(0.066, 14, 10), pantsM, 0, 0, 0));
+        leg.add(mk(CP(0.060, 0.27), pantsM, 0, -0.19, 0));
         const knee = new THREE.Group();
-        knee.position.set(0, -0.33, 0);
-        knee.add(mk(SP(0.073, 14, 10), pantsM, 0, 0, 0));
-        knee.add(mk(CP(0.06, 0.18), pantsM, 0, -0.16, 0));
-        knee.add(mk(RB(0.13, 0.085, 0.24, 0.04), shoeM, 0, -0.34, 0.05));
+        knee.position.set(0, -0.39, 0);
+        knee.add(mk(SP(0.056, 14, 10), pantsM, 0, 0, 0));
+        knee.add(mk(CP(0.048, 0.25), pantsM, 0, -0.19, 0));
+        knee.add(mk(RB(0.095, 0.06, 0.21, 0.025), shoeM, 0, -0.39, 0.045));
         leg.add(knee);
         body.add(leg);
         return { leg, knee };
@@ -2052,7 +2330,7 @@ export default function VirtualOffice3D({
         group.add(lap);
       }
 
-      const labelY = hipY + 1.02;
+      const labelY = hipY + 0.90;
       const orb = new THREE.Mesh(
         SP(0.05, 12, 10),
         new THREE.MeshBasicMaterial({ color: 0xf5b546 }),
@@ -2118,6 +2396,50 @@ export default function VirtualOffice3D({
       rigs.push(rig);
     });
 
+    /* ---------- Kocheng Oren Kantor (Chief Morale Officer) ---------- */
+    const catGroup = new THREE.Group();
+    catGroup.position.set(0.6, 0, 0.2);
+    const catFur = M(0xf59e0b, 0.75);
+    const catBelly = M(0xfef3c7, 0.85);
+    const catNose = M(0xf472b6, 0.5);
+    const catBody = mk(SP(0.14, 14, 12), catFur, 0, 0.17, 0);
+    catBody.scale.set(0.85, 0.78, 1.35);
+    catGroup.add(catBody);
+    catGroup.add(mk(SP(0.11, 12, 10), catBelly, 0, 0.14, 0.04));
+    const catHead = mk(SP(0.105, 14, 12), catFur, 0, 0.28, 0.16);
+    catGroup.add(catHead);
+    for (const sx of [-1, 1]) {
+      const ear = mk(new THREE.ConeGeometry(0.032, 0.07, 4), catFur, sx * 0.06, 0.37, 0.16);
+      ear.rotation.z = sx * -0.25;
+      catGroup.add(ear);
+      catGroup.add(mk(SP(0.012, 8, 6), M(0x111827, 0.2), sx * 0.036, 0.295, 0.255, false));
+    }
+    catGroup.add(mk(SP(0.013, 8, 6), catNose, 0, 0.265, 0.263, false));
+    const catTail = new THREE.Group();
+    catTail.position.set(0, 0.20, -0.17);
+    const tailSeg = mk(CP(0.018, 0.18), catFur, 0, 0.09, -0.04);
+    tailSeg.rotation.x = -0.6;
+    catTail.add(tailSeg);
+    catGroup.add(catTail);
+    for (const [lx, lz] of [[-0.06, 0.09], [0.06, 0.09], [-0.06, -0.09], [0.06, -0.09]]) {
+      catGroup.add(mk(CY(0.022, 0.018, 0.11, 8), catBelly, lx, 0.055, lz));
+    }
+    catGroup.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) {
+        o.userData.isOfficeCat = true;
+        clickable.push(o);
+      }
+    });
+    scene.add(catGroup);
+    const catPatrol: [number, number][] = [
+      [0.6, 0.2],
+      [2.1, 0.5],
+      [1.4, -0.7],
+      [-0.3, 0.5],
+      [0.2, 1.4],
+    ];
+    let catWpIdx = 0;
+
     /* ---------- Kamera & interaksi ---------- */
     const baseDist = 16.5 + extra * 1.1;
     const focusZ = 0.2 + midZ * 0.8;
@@ -2166,16 +2488,26 @@ export default function VirtualOffice3D({
 
       const agentHits = raycaster.intersectObjects(clickable, false);
       if (agentHits.length > 0) {
+        if (agentHits[0].object.userData?.isOfficeCat) {
+          const quote = CAT_QUOTES[Math.floor(Math.random() * CAT_QUOTES.length)];
+          showToastRef.current(quote, 4200);
+          return;
+        }
         const idx = agentHits[0].object.userData?.agentIndex;
         const matched =
           typeof idx === "number" ? agentsRef.current[idx] : undefined;
         if (matched) {
           openMenuAt(matched.id, e.clientX, e.clientY - 30);
+<<<<<<< HEAD
           const station = layout.stations[idx];
           if (station) {
             const [wx, wz] = walkNear(station, zFront);
             ceoTargetRef.current.set(wx, 0, wz);
           }
+=======
+          const [wx, wz] = walkNear(getAgentStationConfig(idx));
+          ceoTargetRef.current.set(wx, 0, wz);
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
           return;
         }
       }
@@ -2281,7 +2613,11 @@ export default function VirtualOffice3D({
       /* Agen */
       for (let i = 0; i < rigs.length; i++) {
         const rig = rigs[i];
+<<<<<<< HEAD
         const st = layout.stations[i];
+=======
+        const st = getAgentStationConfig(i);
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
         if (st.isStanding && st.patrolPoints?.length) {
           const wp = st.patrolPoints[rig.patrolIdx % st.patrolPoints.length];
           const pdx = wp[0] - rig.group.position.x;
@@ -2316,16 +2652,43 @@ export default function VirtualOffice3D({
           rig.leftElbow.rotation.x = -1.0;
           rig.rightElbow.rotation.x = -1.0;
           const lookDown = rig.busy ? 0.16 : 0;
+          const isCoffeeBreak = performance.now() < coffeeBreakUntilRef.current;
           rig.head.rotation.x += (lookDown - rig.head.rotation.x) * k * 0.5;
-          rig.head.rotation.y = rig.busy
-            ? Math.sin(elapsed * 0.7 + i) * 0.05
-            : Math.sin(elapsed * 0.6 + i * 2) * 0.25;
-          rig.body.position.y = Math.sin(elapsed * 1.4 + i) * 0.004;
+          rig.head.rotation.y = isCoffeeBreak
+            ? Math.sin(elapsed * 5 + i) * 0.35
+            : rig.busy
+              ? Math.sin(elapsed * 0.7 + i) * 0.05
+              : Math.sin(elapsed * 0.6 + i * 2) * 0.25;
+          rig.body.position.y = isCoffeeBreak
+            ? Math.abs(Math.sin(elapsed * 6 + i)) * 0.04
+            : Math.sin(elapsed * 1.4 + i) * 0.004;
         }
         if (rig.orb.visible) {
           rig.orb.position.y =
             rig.labelY - 0.12 + Math.sin(elapsed * 3 + i) * 0.02;
         }
+      }
+
+      /* Kocheng Oren patrol + tail wag */
+      {
+        const cwp = catPatrol[catWpIdx % catPatrol.length];
+        const cdx = cwp[0] - catGroup.position.x;
+        const cdz = cwp[1] - catGroup.position.z;
+        const cd = Math.hypot(cdx, cdz);
+        if (cd > 0.06) {
+          const cstep = Math.min(cd, 0.75 * dt);
+          catGroup.position.x += (cdx / cd) * cstep;
+          catGroup.position.z += (cdz / cd) * cstep;
+          catGroup.rotation.y = angleLerp(
+            catGroup.rotation.y,
+            Math.atan2(cdx, cdz),
+            Math.min(1, dt * 6),
+          );
+          catGroup.position.y = Math.abs(Math.sin(elapsed * 7)) * 0.015;
+        } else {
+          catWpIdx = (catWpIdx + 1) % catPatrol.length;
+        }
+        catTail.rotation.z = Math.sin(elapsed * 5.5) * 0.45;
       }
 
       /* Kamera: redaman supaya terasa halus */
@@ -2365,10 +2728,28 @@ export default function VirtualOffice3D({
 
       for (const fn of tickers) fn(elapsed, dt);
 
-      /* Status sibuk (4x/detik) */
+      /* Status sibuk & auto-spawn meja+kursi+avatar untuk role baru (4x/detik) */
       if (elapsed - lastBusy > 0.25) {
         lastBusy = elapsed;
         const ags = agentsRef.current;
+        while (rigs.length < ags.length) {
+          const newIdx = rigs.length;
+          const deskCfg = getExtraDeskConfig(newIdx);
+          createDesk(deskCfg.x, deskCfg.z, deskCfg.rot, newIdx);
+          const st = getAgentStationConfig(newIdx);
+          const rig = buildCharacter({
+            shirt: st.shirtColor,
+            hair: st.hairColor,
+            skin: st.skinColor,
+            seated: !st.isStanding,
+            agentIndex: newIdx,
+            look: st.look,
+            lap: st.onSofa,
+          });
+          rig.group.position.set(...st.seatPos);
+          rig.group.rotation.y = st.facingY;
+          rigs.push(rig);
+        }
         const tks = tasksRef.current;
         rigs.forEach((rig, i) => {
           const ag = ags[i];
@@ -2522,7 +2903,11 @@ export default function VirtualOffice3D({
     selectedAgentIndex >= 0 ? agents[selectedAgentIndex] : null;
   const selectedAgentStation =
     selectedAgentIndex >= 0
+<<<<<<< HEAD
       ? (layout.stations[selectedAgentIndex] ?? null)
+=======
+      ? getAgentStationConfig(selectedAgentIndex)
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
       : null;
   const selectedAgentTasks = selectedAgent
     ? tasks.filter((t) => t.assigned_agent_id === selectedAgent.id)
@@ -2532,10 +2917,39 @@ export default function VirtualOffice3D({
     selectedAgentTasks[0] ||
     null;
 
-  const showToast = (msg: string, ms = 4500) => {
+  const showToast = useCallback((msg: string, ms = 4500) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(""), ms);
-  };
+  }, []);
+
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (agents.length === 0) return;
+      const picked = agents[Math.floor(Math.random() * agents.length)];
+      const quip = FUNNY_QUIPS[Math.floor(Math.random() * FUNNY_QUIPS.length)];
+      setRandomQuip({ agentId: picked.id, text: quip });
+    }, 9000);
+    return () => clearInterval(id);
+  }, [agents]);
+
+  const triggerCoffeeBreak = useCallback(() => {
+    coffeeBreakUntilRef.current = performance.now() + 5500;
+    showToast(
+      "☕ COFFEE BREAK! Semua agen serempak stretching sambil nunggu gorengan & ngopi bareng!",
+      4800,
+    );
+    if (agents.length > 0) {
+      const picked = agents[Math.floor(Math.random() * agents.length)];
+      setRandomQuip({
+        agentId: picked.id,
+        text: "Waktunya ngopi & stretching dulu gess! ☕🕺",
+      });
+    }
+  }, [agents, showToast]);
 
   async function handleAssignTaskSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -2718,7 +3132,7 @@ export default function VirtualOffice3D({
       className="relative h-[calc(100vh-1px)] min-h-[680px] w-full select-none overflow-hidden"
       style={{
         background:
-          "radial-gradient(ellipse at 50% 40%, #e8dff5 0%, #b8a9d2 55%, #756a91 100%)",
+          "radial-gradient(ellipse at 50% 40%, #1e293b 0%, #0f172a 55%, #070b14 100%)",
       }}
     >
       {/* Kanvas 3D */}
@@ -2732,17 +3146,34 @@ export default function VirtualOffice3D({
         <div
           ref={ceoLabelRef}
           className="absolute left-0 top-0 z-10 will-change-transform"
-          style={{ visibility: "hidden" }}
+          style={{
+            visibility: "hidden",
+            display: headLabelMode === "hide" ? "none" : undefined,
+          }}
         >
           <div className="whitespace-nowrap rounded-full bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-900 shadow-lg">
-            Kamu · CEO
+            {headLabelMode === "role" ? "Founder / CEO" : headLabelMode === "name" ? "Kamu" : "Kamu · CEO"}
           </div>
         </div>
 
+<<<<<<< HEAD
         {agents.slice(0, layout.stations.length).map((a, i) => {
           const busyTitle = busyByAgent.get(a.id);
           const selected = selectedAgentId === a.id;
           const dot = `#${layout.stations[i].shirtColor.toString(16).padStart(6, "0")}`;
+=======
+        {agents.map((a, i) => {
+          const busyTitle = busyByAgent.get(a.id);
+          const selected = selectedAgentId === a.id;
+          const dot = `#${getAgentStationConfig(i).shirtColor.toString(16).padStart(6, "0")}`;
+          const nickName = getShortFirstName(a, i);
+          const badgeText =
+            headLabelMode === "name"
+              ? nickName
+              : headLabelMode === "role"
+                ? a.role
+                : `${nickName} · ${a.role}`;
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
           return (
             <div
               key={a.id}
@@ -2753,72 +3184,86 @@ export default function VirtualOffice3D({
               className="absolute left-0 top-0 z-10 flex flex-col items-center gap-1 will-change-transform"
               style={{ visibility: "hidden" }}
             >
-              {busyTitle && (
+              {busyTitle ? (
                 <div className="max-w-[160px] truncate rounded-lg border border-amber-300/30 bg-[#2a2118]/90 px-2 py-0.5 text-[10px] text-amber-100 shadow">
                   {busyTitle}
                 </div>
-              )}
-              <button
-                type="button"
-                aria-label={`Pilih peran ${a.role}`}
-                title={a.role}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openMenuAt(a.id, e.clientX, e.clientY);
-                }}
-                className={`pointer-events-auto flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold shadow-md backdrop-blur-md transition ${
-                  selected
-                    ? "scale-105 border-violet-300 bg-violet-600/95 text-white"
-                    : "border-white/15 bg-[#1a1626]/85 text-slate-200 hover:border-white/40"
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${busyTitle ? "animate-pulse" : ""}`}
-                  style={{
-                    background: dot,
-                    boxShadow: busyTitle ? "0 0 0 2px #f5b54655" : undefined,
+              ) : randomQuip?.agentId === a.id ? (
+                <div className="max-w-[200px] rounded-xl border border-sky-300/35 bg-[#0f172a]/95 px-2.5 py-1 text-[10px] text-sky-100 shadow-lg backdrop-blur">
+                  💬 {randomQuip.text}
+                </div>
+              ) : null}
+              {headLabelMode !== "hide" && (
+                <button
+                  type="button"
+                  aria-label={`Pilih peran ${a.role}`}
+                  title={`${nickName} — ${a.role}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openMenuAt(a.id, e.clientX, e.clientY);
                   }}
-                />
-                <span className="max-w-[155px] truncate">{a.role}</span>
-              </button>
+                  className={`pointer-events-auto flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold shadow-md backdrop-blur-md transition ${
+                    selected
+                      ? "scale-105 border-violet-300 bg-violet-600/95 text-white"
+                      : "border-white/15 bg-[#1a1626]/85 text-slate-200 hover:border-white/40"
+                  }`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full ${busyTitle ? "animate-pulse" : ""}`}
+                    style={{
+                      background: dot,
+                      boxShadow: busyTitle ? "0 0 0 2px #f5b54655" : undefined,
+                    }}
+                  />
+                  <span className="max-w-[185px] truncate">{badgeText}</span>
+                </button>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* HUD proyek */}
-      <div className="absolute left-4 top-4 z-20 flex max-w-xl flex-col gap-2.5">
+      {/* HUD proyek — compact single-row bar */}
+      <div className="absolute left-4 top-4 right-4 md:right-auto z-20 flex flex-col gap-2 max-w-[calc(100vw-2rem)]">
         <div
-          className={`flex flex-wrap items-center gap-4 rounded-2xl px-5 py-3.5 shadow-2xl ${PANEL}`}
+          className="flex flex-wrap md:flex-nowrap items-center gap-3 rounded-2xl border border-white/10 bg-[#0f172a]/85 backdrop-blur-xl px-4 py-2.5 shadow-2xl"
         >
-          <div className="min-w-[200px]">
-            <select
-              value={activeProject?.id ?? ""}
-              onChange={(e) => setSelectedProjectId(Number(e.target.value))}
-              className="cursor-pointer bg-transparent text-base font-bold text-slate-50 outline-none hover:text-violet-200"
-            >
-              {projects.map((p) => (
-                <option
-                  key={p.id}
-                  value={p.id}
-                  className="bg-[#1a1626] text-white"
-                >
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <p className="mt-0.5 max-w-[290px] truncate text-xs text-slate-400">
+          <div className="min-w-[170px] max-w-[260px]">
+            {projects.length > 0 ? (
+              <select
+                value={activeProject?.id ?? ""}
+                onChange={(e) => setSelectedProjectId(Number(e.target.value))}
+                className="w-full cursor-pointer truncate bg-transparent text-sm font-bold text-slate-50 outline-none hover:text-sky-300"
+              >
+                {projects.map((p) => (
+                  <option
+                    key={p.id}
+                    value={p.id}
+                    className="bg-[#0f172a] text-white"
+                  >
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="truncate text-sm font-bold text-slate-50">
+                {branding.office_name || "Virtual HQ"}
+              </p>
+            )}
+            <p className="mt-0.5 truncate text-[11px] text-slate-400">
               {activeProject?.description ||
-                "Pilih agen di kantor untuk memberi tugas atau cek progres."}
+                "Klik agen di kantor untuk tugas atau chat."}
             </p>
           </div>
 
-          <div className="min-w-[130px] rounded-xl border border-white/10 bg-[#100d1a] px-3.5 py-2">
-            <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-slate-200">${simulatedSpend}</span>
-              <span className="text-slate-500">/ $10.00</span>
+          <div className="hidden md:block h-7 w-px bg-white/10 shrink-0" />
+
+          <div className="min-w-[115px] shrink-0 rounded-xl border border-white/10 bg-[#090d16]/90 px-3 py-1.5">
+            <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
+              <span className="text-slate-100">${simulatedSpend}</span>
+              <span className="text-slate-500">/ $10</span>
             </div>
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-800">
               <div
                 style={{ width: `${Math.max(15, progressPct)}%` }}
                 className="h-full rounded-full bg-emerald-500 transition-all"
@@ -2826,12 +3271,20 @@ export default function VirtualOffice3D({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 text-slate-400">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={triggerCoffeeBreak}
+              title="Mode Coffee Break & Stretching Bareng"
+              className="inline-flex items-center gap-1 rounded-xl border border-amber-400/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200 transition hover:bg-amber-500/20 whitespace-nowrap"
+            >
+              ☕ Coffee Break
+            </button>
             <button
               type="button"
               onClick={() => setActiveActionModal("new_project")}
               title="Buat Proyek Baru"
-              className="rounded-lg p-2 transition hover:bg-white/10 hover:text-white"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs text-slate-300 transition hover:bg-white/10 hover:text-white"
             >
               ➕
             </button>
@@ -2839,7 +3292,7 @@ export default function VirtualOffice3D({
               type="button"
               onClick={() => setActiveActionModal("board")}
               title="Buka Papan Tugas Proyek"
-              className="rounded-lg p-2 transition hover:bg-white/10 hover:text-white"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs text-slate-300 transition hover:bg-white/10 hover:text-white"
             >
               ⊞
             </button>
@@ -2848,7 +3301,7 @@ export default function VirtualOffice3D({
                 type="button"
                 onClick={onOpenClassicDashboard}
                 title="Tampilan Analitik Tabel"
-                className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 transition hover:bg-white/10 hover:text-white whitespace-nowrap"
               >
                 📊 Tabel
               </button>
@@ -2970,10 +3423,43 @@ export default function VirtualOffice3D({
           >
             3D
           </button>
+          <div className="mx-1 h-4 w-px bg-white/10" />
+          <button
+            type="button"
+            onClick={() => setHeadLabelMode("name")}
+            className={segBtn(headLabelMode === "name")}
+            title="Tampilkan Nama Panggilan saja"
+          >
+            Nama
+          </button>
+          <button
+            type="button"
+            onClick={() => setHeadLabelMode("role")}
+            className={segBtn(headLabelMode === "role")}
+            title="Tampilkan Role saja"
+          >
+            Role
+          </button>
+          <button
+            type="button"
+            onClick={() => setHeadLabelMode("both")}
+            className={segBtn(headLabelMode === "both")}
+            title="Tampilkan Nama & Role"
+          >
+            Semua
+          </button>
+          <button
+            type="button"
+            onClick={() => setHeadLabelMode("hide")}
+            className={segBtn(headLabelMode === "hide")}
+            title="Sembunyikan label di atas kepala"
+          >
+            Hide
+          </button>
         </div>
         <div className="text-right">
           <p className="text-sm font-bold tracking-tight text-slate-300">
-            SolusiMacro Office
+            {branding.office_name || "Virtual HQ"} Office
           </p>
           <p className="text-[11px] text-slate-500">{clockText}</p>
         </div>

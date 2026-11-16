@@ -738,60 +738,103 @@ def generate_social_content(
     topic: str,
     platforms: list[str],
     source_context: str = "",
+    winning_posts_context: str = "",
+    tone: str = "Profesional, edukatif, dan menarik untuk UMKM & pebisnis",
     model: str | None = None,
     db_session=None,
-) -> dict:
+) -> str:
     chosen_model = resolve_ai_model(model, task_type="social_post", db_session=db_session)
+<<<<<<< HEAD
     company_name, _ = _get_workspace_identity(db_session)
     system_prompt = f"""
 Kamu adalah Head of Social Media {company_name}.
 Buat draf konten promosi/edukasi untuk platform yang diminta dalam JSON valid:
+=======
+    system_prompt = """
+Kamu adalah Head of Social Media Strategist.
+Buat draf konten promosi/edukasi untuk platform yang diminta dalam JSON valid TANPA markdown fence atau teks tambahan:
+>>>>>>> 491fa98 (feat: realistic 3D characters, dark executive cozy office, dynamic desks, cat/quips, label toggle & social AI fix)
 {
-  "title": "Judul konten",
-  "content_facebook": "Teks Facebook",
-  "content_instagram": "Teks Instagram",
-  "content_youtube": "Script YouTube Shorts",
-  "content_tiktok": "Script TikTok",
-  "content_threads": "Utas Threads"
+  "title": "Judul singkat konten",
+  "facebook": "Postingan Facebook lengkap dengan hook, isi, dan CTA",
+  "instagram": "Caption Instagram menarik + hashtag relevan",
+  "youtube": "Script YouTube Shorts (Hook 3 detik + Isi + CTA)",
+  "tiktok": "Script TikTok (Hook + Scene/Narasi + CTA)",
+  "threads": "Utas Threads yang ringkas, conversational, dan memancing diskusi"
 }
+ATURAN OUTPUT: Langsung balas HANYA JSON valid dengan key persis seperti di atas.
 """
-    prompt = f"Topik: {topic}\nPlatforms: {', '.join(platforms)}\nKonteks: {source_context}"
+    prompt = (
+        f"Topik: {topic}\n"
+        f"Platforms: {', '.join(platforms)}\n"
+        f"Gaya / Tone: {tone}\n"
+        f"Konteks Tambahan:\n{source_context or '-'}\n\n"
+        f"Referensi Winning Posts:\n{winning_posts_context or '-'}"
+    )
     content, _ = _chat_completion_with_fallback(
         model=chosen_model,
-        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
-        max_tokens=3000,
-        temperature=0.7,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=4096,
+        temperature=0.65,
         db_session=db_session,
     )
-    try:
-        clean_json = content.strip().strip("```json").strip("```").strip()
-        return json.loads(clean_json)
-    except Exception:
-        return {"title": topic, "content_threads": content}
+    return content
 
 
 def generate_social_calendar(
-    focus_topic: str,
+    campaign_theme: str = "",
     days: int = 7,
     platforms: list[str] | None = None,
+    tone: str = "Profesional, edukatif, dan menarik untuk UMKM & pebisnis",
+    source_context: str = "",
+    winning_posts_context: str = "",
+    focus_topic: str = "",
     model: str | None = None,
     db_session=None,
-) -> list[dict]:
+) -> str:
+    theme = (campaign_theme or focus_topic).strip()
     chosen_model = resolve_ai_model(model, task_type="calendar", db_session=db_session)
-    prompt = f"Buat kalender konten {days} hari tentang {focus_topic} untuk {platforms}. Return JSON list of {{\"day\": 1, \"title\": \"...\", \"topic\": \"...\"}}"
+    system_prompt = """
+Kamu adalah Social Media Campaign Planner.
+Buat kalender konten multi-hari dalam JSON valid TANPA markdown fence:
+{
+  "campaign_name": "Nama kampanye singkat",
+  "days": [
+    {
+      "day": 1,
+      "angle": "Edukasi / Studi Kasus / Soft Selling / Behind the Scenes",
+      "title": "Judul konten hari ke-1",
+      "facebook": "Draft Facebook",
+      "instagram": "Draft Instagram",
+      "youtube": "Script YouTube Shorts",
+      "tiktok": "Script TikTok",
+      "threads": "Draft Threads"
+    }
+  ]
+}
+"""
+    prompt = (
+        f"Tema Kampanye: {theme}\n"
+        f"Jumlah Hari: {days}\n"
+        f"Platforms: {', '.join(platforms or [])}\n"
+        f"Tone: {tone}\n"
+        f"Konteks:\n{source_context or '-'}\n\n"
+        f"Referensi Winning Posts:\n{winning_posts_context or '-'}"
+    )
     content, _ = _chat_completion_with_fallback(
         model=chosen_model,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=3000,
-        temperature=0.5,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=6000,
+        temperature=0.55,
         db_session=db_session,
     )
-    try:
-        clean = content.strip().strip("```json").strip("```").strip()
-        res = json.loads(clean)
-        return res if isinstance(res, list) else []
-    except Exception:
-        return []
+    return content
 
 
 def refine_social_platform_content(
@@ -802,11 +845,16 @@ def refine_social_platform_content(
     db_session=None,
 ) -> str:
     chosen_model = resolve_ai_model(model, task_type="refine", db_session=db_session)
-    prompt = f"Revisi konten {platform} berikut sesuai instruksi:\n\n{current_content}\n\nInstruksi: {instruction}"
+    prompt = (
+        f"Revisi konten {platform} berikut sesuai instruksi. "
+        f"Langsung berikan hasil teks revisi final dalam Bahasa Indonesia tanpa penjelasan tambahan.\n\n"
+        f"Konten Saat Ini:\n{current_content}\n\n"
+        f"Instruksi Revisi: {instruction}"
+    )
     content, _ = _chat_completion_with_fallback(
         model=chosen_model,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=2000,
+        max_tokens=3000,
         temperature=0.6,
         db_session=db_session,
     )
@@ -815,22 +863,47 @@ def refine_social_platform_content(
 
 def analyze_and_replicate_winning_posts(
     winning_posts: list[dict],
-    new_topic: str,
+    new_topic: str = "",
+    platforms: list[str] | None = None,
+    tone: str = "Tajam, relevan, memancing diskusi tinggi & shareable",
     target_platform: str = "threads",
     model: str | None = None,
     db_session=None,
-) -> dict:
+) -> str:
     chosen_model = resolve_ai_model(model, task_type="winning_copy", db_session=db_session)
-    prompt = f"Tiru hook dan pola dari postingan terbaik ini untuk topik baru '{new_topic}'. Return JSON."
+    target_plats = ", ".join(platforms or [target_platform])
+    system_prompt = """
+Kamu adalah Viral Content Analyst & Copywriter.
+Analisis pola hook & struktur postingan pemenang lalu replikasi untuk topik baru.
+Balas HANYA dengan JSON valid TANPA markdown fence:
+{
+  "pattern_analysis": {
+    "winning_hook_formula": "Ringkasan pola hook terbaik",
+    "engagement_drivers": "Faktor utama pemicu interaksi",
+    "recommended_cta": "Pola CTA yang efektif"
+  },
+  "title": "Judul konten baru",
+  "facebook": "Draft Facebook",
+  "instagram": "Draft Instagram",
+  "youtube": "Script YouTube Shorts",
+  "tiktok": "Script TikTok",
+  "threads": "Draft Threads"
+}
+"""
+    prompt = (
+        f"Topik Baru: {new_topic or 'Bebas relevan dengan pola pemenang'}\n"
+        f"Target Platforms: {target_plats}\n"
+        f"Tone: {tone}\n"
+        f"Data Winning Posts:\n{json.dumps(winning_posts[:6], ensure_ascii=False)}"
+    )
     content, _ = _chat_completion_with_fallback(
         model=chosen_model,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=2500,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=4096,
         temperature=0.6,
         db_session=db_session,
     )
-    try:
-        clean = content.strip().strip("```json").strip("```").strip()
-        return json.loads(clean)
-    except Exception:
-        return {"replicated_content": content}
+    return content
